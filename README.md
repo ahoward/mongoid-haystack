@@ -136,16 +136,16 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-  there two main pathways to understand in the code.  shit going into the
-  index, and shit coming out.
+there two main pathways to understand in the code.  shit going into the
+index, and shit coming out.
 
-  shit going in entails:
+shit going in entails:
 
-  - stem and stopword the search terms.
-  - create or update a new token for each
-  - create an index item reference all the tokens with precomputed scores
+- stem and stopword the search terms.
+- create or update a new token for each
+- create an index item reference all the tokens with precomputed scores
 
-  for example the terms 'dog dogs cat' might result in these tokens
+for example the terms 'dog dogs cat' might result in these tokens
 
 ````javascript
 
@@ -193,46 +193,46 @@ DESCRIPTION
 
 ````
 
-  being built
+being built
 
-  in addition, some other information is tracked such and the total number of
-  search tokens every discovered in the corpus
+in addition, some other information is tracked such and the total number of
+search tokens every discovered in the corpus
   
 
 
-  a few things to notice:
+a few things to notice:
   
-    - the tokens are counted and auto-id'd using hex notation and a sequence
-      generator.  the reason for this is so that their ids are legit hash keys
-      in the keyword and fulltext score hashes.
+- the tokens are counted and auto-id'd using hex notation and a sequence
+  generator.  the reason for this is so that their ids are legit hash keys
+  in the keyword and fulltext score hashes.
 
-    - the data structure above allows both filtering for index items that have
-      certain tokens, but also ordering them based on global, keyword, and
-      fulltext score without resorting to map-reduce: a b-tree index can be
-      used.
+- the data structure above allows both filtering for index items that have
+  certain tokens, but also ordering them based on global, keyword, and
+  fulltext score without resorting to map-reduce: a b-tree index can be
+  used.
 
-    - all tokens have their text/stem stored exactly once.  aka: we do not store
-      'hugewords' all over the place but store it once and count occurances of
-      it to keep the total index much smaller
-
-
+- all tokens have their text/stem stored exactly once.  aka: we do not store
+  'hugewords' all over the place but store it once and count occurances of
+  it to keep the total index much smaller
 
 
-  pulling objects back out in a search involved these logical steps:
 
-    - filter the search terms through the same tokenizer as when indexed
 
-    - lookup tokens for each of the tokens in the search string
+pulling objects back out in a search involved these logical steps:
 
-    - using the count for each token, plus the global token count that has been
-      tracked we can decide to order the results by relatively rare words first
-      an, all else being equal (same rarity), the order in which the user typed
-      the words
+- filter the search terms through the same tokenizer as when indexed
 
-    - this approach is applies and is valid whether we are doing a union (or) or
-      intersection (all) search and regardless of whether facets are included in
-      the search.  facets, however, never affect the order unless done so by the
-      user manually.  eg
+- lookup tokens for each of the tokens in the search string
+
+- using the count for each token, plus the global token count that has been
+  tracked we can decide to order the results by relatively rare words first
+  an, all else being equal (same rarity), the order in which the user typed
+  the words
+
+- this approach is applies and is valid whether we are doing a union (or) or
+  intersection (all) search and regardless of whether facets are included in
+  the search.  facets, however, never affect the order unless done so by the
+  user manually.  eg
 
 ````ruby
 
