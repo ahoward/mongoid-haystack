@@ -3,14 +3,6 @@ require_relative 'helper'
 Testing Mongoid::Haystack do
 ##
 #
-
-  setup do
-    [A, B, C].map{|m| m.destroy_all}
-    Mongoid::Haystack.destroy_all
-  end
-
-##
-#
   testing 'that models can, at minimum, be indexed and searched' do
     a = A.create!(:content => 'dog')
     b = B.create!(:content => 'cat')
@@ -243,7 +235,6 @@ Testing Mongoid::Haystack do
     assert{ Mongoid::Haystack.search('dog').first.model == b }
   end
 
-
 protected
 
   def new_klass(&block)
@@ -264,4 +255,9 @@ protected
   H = Mongoid::Haystack
   T = Mongoid::Haystack::Token
   I = Mongoid::Haystack::Index
+
+  setup do
+    [A, B, C].map{|m| m.destroy_all}
+    Mongoid::Haystack.destroy_all
+  end
 end
