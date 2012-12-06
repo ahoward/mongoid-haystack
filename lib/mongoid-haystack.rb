@@ -2,7 +2,7 @@
 #
   module Mongoid
     module Haystack
-      const_set :Version, '1.0.0'
+      const_set :Version, '1.1.0'
 
       class << Haystack
         def version
@@ -11,9 +11,11 @@
 
         def dependencies
           {
-            'mongoid'     => [ 'mongoid'     , '~> 3.0' ] ,
-            'map'         => [ 'map'         , '~> 6.2' ] ,
-            'fattr'       => [ 'fattr'       , '~> 2.2' ] ,
+            'mongoid'       => [ 'mongoid'       , '~> 3.0'   ] , 
+            'map'           => [ 'map'           , '~> 6.2'   ] , 
+            'fattr'         => [ 'fattr'         , '~> 2.2'   ] , 
+            'coerce'        => [ 'coerce'        , '~> 0.0.3' ] , 
+            'unicode_utils' => [ 'unicode_utils' , '~> 1.4.0' ] , 
           }
         end
 
@@ -66,6 +68,9 @@
         end
       end
 
+      require 'unicode_utils/u'
+      require 'unicode_utils/each_word'
+
       load Haystack.libdir('stemming.rb')
       load Haystack.libdir('util.rb')
       load Haystack.libdir('count.rb')
@@ -73,6 +78,10 @@
       load Haystack.libdir('token.rb')
       load Haystack.libdir('index.rb')
       load Haystack.libdir('search.rb')
+
+      def Haystack.included(other)
+        other.send(:include, Search)
+      end
 
       extend Haystack
     end

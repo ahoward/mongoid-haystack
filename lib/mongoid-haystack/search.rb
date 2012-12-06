@@ -5,15 +5,34 @@ module Mongoid
       options = Map.options_for!(args)
       search = args.join(' ')
 
+      conditions = {}
+      order = []
+
+      op = :tokens.in
+
+    #
+      case
+        when options[:all]
+          op = :tokens.all
+          search += Coerce.string(options[:all]) 
+
+        when options[:any]
+          op = :tokens.in
+          search += Coerce.string(options[:any]) 
+
+        when options[:in]
+          op = :tokens.in
+          search += Coerce.string(options[:in]) 
+      end
+
     #
       tokens = search_tokens_for(search)
+      token_ids = tokens.map{|token| token.id}
 
     #
-      conditions = {}
-      conditions[:tokens.in] = tokens.map{|token| token.id}
+      conditions[op] = token_ids
 
     #
-      order = []
       order.push(["score", :desc])
 
       tokens.each do |token|
@@ -26,7 +45,7 @@ module Mongoid
 
     #
       if options[:facets]
-        conditions[:facets] = options[:facets]
+        conditions[:facets] = {'$elemMatch' => options[:facets]}
       end
 
     #
@@ -64,7 +83,7 @@ module Mongoid
           options[:types] = Array(options[:types]).flatten.compact
           options[:types].push(self)
           args.push(options)
-          Haystack.search(*args, &block)
+          results = Haystack.search(*args, &block)
         end
 
         after_save do |doc|
@@ -82,6 +101,8 @@ module Mongoid
             nil
           end
         end
+
+        has_one(:haystack_index, :as => :model, :class_name => '::Mongoid::Haystack::Index')
       end
 
       InstanceMethods = proc do
@@ -99,6 +120,11 @@ module Mongoid
       def denormalize
         ::Mongoid::Haystack.denormalize(self)
         self
+      end
+
+      def models
+        denormalize
+        map(&:model)
       end
     end
 

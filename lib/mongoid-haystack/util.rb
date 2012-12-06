@@ -33,9 +33,6 @@ module Mongoid
         models.map{|model| model.destroy_all}
       end
 
-      def stem(*args, &block)
-        Stemming.stem(*args, &block)
-      end
 
       def find_or_create(finder, creator)
         doc = finder.call()
@@ -57,6 +54,23 @@ module Mongoid
         Mongoid.configure do |config|
           config.connect_to('mongoid-haystack')
         end
+      end
+
+      def words_for(*args)
+        string = args.flatten.compact.join(' ').scan(/\w+/).join(' ')
+        words = []
+        UnicodeUtils.each_word(string) do |word|
+          word = UnicodeUtils.nfkd(word.strip)
+          word.gsub!(/\A(?:[^\w]|_|\s)+/, '')  # leading punctuation/spaces
+          word.gsub!(/(?:[^\w]|_|\s+)+\Z/, '') # trailing punctuation/spaces
+          next if word.empty?
+          words.push(word)
+        end
+        words
+      end
+
+      def stems_for(*args, &block)
+        Stemming.stem(*args, &block)
       end
 
       extend Util

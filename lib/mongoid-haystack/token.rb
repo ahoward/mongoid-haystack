@@ -4,33 +4,20 @@ module Mongoid
       include Mongoid::Document
 
       class << Token
-        def values_for(*args, &block)
-          string = args.join(' ')
-          values = string.scan(/[^\s]+/)
-          Stemming.stem(*values)
+        def values_for(*args)
+          Haystack.stems_for(*args)
         end
 
         def add(value)
-          token = nil
-          created = nil
-
-          Haystack.find_or_create(
-            proc do
-              token = where(:value => value).first
-              created = false if token
-              token
-            end,
-
-            proc do
-              token = create!(:value => value)
-              created = true if token
-              token
-            end
-          )
+          token =
+            Haystack.find_or_create(
+              ->{ where(:value => value).first },
+              ->{ create!(:value => value) }
+            )
 
           token.inc(:count, 1)
 
-          Count[:tokens].inc(1) #if created
+          Count[:tokens].inc(1)
 
           token
         end

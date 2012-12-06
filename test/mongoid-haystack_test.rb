@@ -3,7 +3,6 @@ require_relative 'helper'
 Testing Mongoid::Haystack do
 ##
 #
-  Mongoid::Haystack.reset!
 
   setup do
     [A, B, C].map{|m| m.destroy_all}
@@ -49,7 +48,7 @@ Testing Mongoid::Haystack do
 ##
 #
   testing 'that basic stemming can be performed' do
-    assert{ Mongoid::Haystack.stem('dogs cats') == %w[ dog cat ] }
+    assert{ Mongoid::Haystack.stems_for('dogs cats fishes') == %w[ dog cat fish ] }
   end
 
   testing 'that words are stemmed when they are indexed' do
@@ -80,14 +79,12 @@ Testing Mongoid::Haystack do
   end
 
   testing 'that removing a model from the index decrements counts appropriately' do
-  #
     a = A.create!(:content => 'dog')
     b = A.create!(:content => 'cat')
     c = A.create!(:content => 'cats dogs')
 
     assert{ Mongoid::Haystack.index(A) }
 
-  #
     assert{ Mongoid::Haystack.search('cat').first }
 
     assert{ Mongoid::Haystack::Token.where(:value => 'cat').first.count == 2 }
@@ -116,4 +113,155 @@ Testing Mongoid::Haystack do
     assert{ Mongoid::Haystack::Token.where(:value => 'cat').first.count == 0 }
     assert{ Mongoid::Haystack::Token.where(:value => 'dog').first.count == 0 }
   end
+
+##
+#
+  testing 'that search uses a b-tree index' do
+    a = A.create!(:content => 'dog')
+
+    assert{ Mongoid::Haystack.index(A) }
+    assert{ Mongoid::Haystack.search('dog').explain['cursor'] =~ /BtreeCursor/i }
+  end
+
+##
+#
+  testing 'that classes can export a custom [score|keywords|fulltext] for the search index' do
+    k = new_klass do 
+      def to_haystack
+        colors.push(color = colors.shift)
+
+        {
+          :score => score,
+
+          :keywords => "cats #{ color }",
+
+          :fulltext => 'now is the time for all good men...'
+        }
+      end
+
+      def self.score
+        @score ||= 0
+      ensure
+        @score += 1
+      end
+
+      def score
+        self.class.score
+      end
+
+      def self.colors
+        @colors ||= %w( black white )
+      end
+
+      def colors
+        self.class.colors
+      end
+    end
+
+    a = k.create!(:content => 'dog')
+    b = k.create!(:content => 'dogs too')
+
+    assert{ a.haystack_index.score == 0 }
+    assert{ b.haystack_index.score == 1 }
+
+    assert do
+      Mongoid::Haystack::Token.where(:id.in => a.haystack_index.tokens).map(&:value).sort ==
+        ["black", "cat", "good", "men", "time"]
+    end
+    assert do
+      Mongoid::Haystack::Token.where(:id.in => b.haystack_index.tokens).map(&:value).sort ==
+        ["cat", "good", "men", "time", "white"]
+    end
+
+    assert{ Mongoid::Haystack.search('cat').count == 2 }
+    assert{ Mongoid::Haystack.search('black').count == 1 }
+    assert{ Mongoid::Haystack.search('white').count == 1 }
+    assert{ Mongoid::Haystack.search('good men').count == 2 }
+  end
+
+##
+#
+  testing 'that set intersection and union are supported via search' do
+    a = A.create!(:content => 'dog')
+    b = A.create!(:content => 'dog cat')
+    c = A.create!(:content => 'dog cat fish')
+
+    assert{ Mongoid::Haystack.index(A) }
+
+    assert{ Mongoid::Haystack.search(:any => 'dog').count == 3 }
+    assert{ Mongoid::Haystack.search(:any => 'dog cat').count == 3 }
+    assert{ Mongoid::Haystack.search(:any => 'dog cat fish').count == 3 }
+
+    assert{ Mongoid::Haystack.search(:all => 'dog').count == 3 }
+    assert{ Mongoid::Haystack.search(:all => 'dog cat').count == 2 }
+    assert{ Mongoid::Haystack.search(:all => 'dog cat fish').count == 1 }
+  end
+
+##
+#
+  testing 'that classes can export custom facets and then search them, again using a b-tree index' do
+    k = new_klass do
+      field(:to_haystack, :type => Hash, :default => proc{ Hash.new })
+    end
+
+    a = k.create!(:content => 'hello kitty', :to_haystack => { :keywords => 'cat', :facets => {:x => 42.0}})
+    b = k.create!(:content => 'hello kitty', :to_haystack => { :keywords => 'cat', :facets => {:x => 4.20}})
+
+    assert{ Mongoid::Haystack.search('cat').where(:facets => {'x' => 42.0}).first.model == a }
+    assert{ Mongoid::Haystack.search('cat').where(:facets => {'x' => 4.20}).first.model == b }
+
+    assert{ Mongoid::Haystack.search('cat').where('facets.x' => 42.0).first.model == a }
+    assert{ Mongoid::Haystack.search('cat').where('facets.x' => 4.20).first.model == b }
+
+    assert{ Mongoid::Haystack.search('cat').where('facets' => {'x' => 42.0}).explain['cursor'] =~ /BtreeCursor/ }
+    assert{ Mongoid::Haystack.search('cat').where('facets' => {'x' => 4.20}).explain['cursor'] =~ /BtreeCursor/ }
+
+    assert{ Mongoid::Haystack.search('cat').where('facets.x' => 42.0).explain['cursor'] =~ /BtreeCursor/ }
+    assert{ Mongoid::Haystack.search('cat').where('facets.x' => 4.20).explain['cursor'] =~ /BtreeCursor/ }
+  end
+
+##
+#
+  testing 'that keywords are considered more highly than fulltext' do
+    k = new_klass do
+      field(:title)
+      field(:body)
+
+      def to_haystack
+        { :keywords => title, :fulltext => body }
+      end
+    end
+
+    a = k.create!(:title => 'the cats', :body => 'like to meow')
+    b = k.create!(:title => 'the dogs', :body => 'do not like to meow, they bark at cats')
+
+    assert{ Mongoid::Haystack.search('cat').count == 2 }
+    assert{ Mongoid::Haystack.search('cat').first.model == a }
+
+    assert{ Mongoid::Haystack.search('meow').count == 2 }
+    assert{ Mongoid::Haystack.search('bark').count == 1 }
+    assert{ Mongoid::Haystack.search('dog').first.model == b }
+  end
+
+
+protected
+
+  def new_klass(&block)
+    Object.send(:remove_const, :K) if Object.send(:const_defined?, :K)
+
+    k = Class.new(A) do
+      self.default_collection_name = :ks
+      def self.name() 'K' end
+      include ::Mongoid::Haystack::Search
+      class_eval(&block) if block
+    end
+
+    Object.const_set(:K, k)
+
+    k
+  end
+
+  H = Mongoid::Haystack
+  T = Mongoid::Haystack::Token
+  I = Mongoid::Haystack::Index
 end
