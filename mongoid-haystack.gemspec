@@ -44,6 +44,7 @@ Gem::Specification::new do |spec|
  "lib/mongoid-haystack/stemming/stopwords/full_spanish.txt",
  "lib/mongoid-haystack/token.rb",
  "lib/mongoid-haystack/util.rb",
+ "mongoid-haystack.gemspec",
  "test",
  "test/helper.rb",
  "test/mongoid-haystack_test.rb",

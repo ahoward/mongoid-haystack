@@ -36,7 +36,9 @@ module Mongoid
       end
 
     #
-      Index.where(conditions).order_by(order)
+      Index.where(conditions).order_by(order).tap do |results|
+        results.extend(Denormalize)
+      end
     end
 
     def search_tokens_for(search)
@@ -91,6 +93,69 @@ module Mongoid
         other.instance_eval(&ClassMethods)
         other.class_eval(&InstanceMethods)
       end
+    end
+
+    module Denormalize
+      def denormalize
+        ::Mongoid::Haystack.denormalize(self)
+        self
+      end
+    end
+
+    def Haystack.denormalize(results)
+      queries = Hash.new{|h,k| h[k] = []}
+
+      results = results.to_a.flatten.compact
+
+      results.each do |result|
+        model_type = result[:model_type]
+        model_id = result[:model_id]
+        model_class = model_type.constantize
+        queries[model_class].push(model_id)
+      end
+
+      index = Hash.new{|h,k| h[k] = {}}
+
+      queries.each do |model_class, model_ids|
+        models = 
+          begin
+            model_class.find(model_ids)
+          rescue Mongoid::Errors::DocumentNotFound
+            model_ids.map do |model_id|
+              begin
+                model_class.find(model_id)
+              rescue Mongoid::Errors::DocumentNotFound
+                nil
+              end
+            end
+          end
+
+        models.each do |model|
+          index[model.class.name] ||= Hash.new
+          next unless model
+          index[model.class.name][model.id.to_s] = model
+        end
+      end
+
+      to_ignore = []
+
+      results.each_with_index do |result, i|
+        model = index[result['model_type']][result['model_id'].to_s]
+
+        if model.nil?
+          to_ignore.push(i)
+          next
+        else
+          result.model = model
+        end
+
+        result.model.freeze
+        result.freeze
+      end
+
+      to_ignore.reverse.each{|i| results.delete_at(i)}
+
+      results.to_a
     end
   end
 end
