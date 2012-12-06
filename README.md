@@ -34,4 +34,4 @@ SYNOPSIS
 
 SEE ALSO
 --------
-  tests: <a href='./blob/master/test/mongoid-haystack_test.rb'>./test/mongoid-haystack_test.rb<a/>
+  tests: <a href='https://github.com/ahoward/mongoid-haystack/blob/master/test/mongoid-haystack_test.rb'>./test/mongoid-haystack_test.rb<a/>
