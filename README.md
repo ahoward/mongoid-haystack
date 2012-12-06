@@ -141,48 +141,50 @@ DESCRIPTION
   seen stem.  for example the terms 'dog dogs cat' might result in these
   tokens
 
-    ````javascript
+````javascript
 
-      {
-        '_id'   : '0x1',
-        'value' : 'dog',
-        'count' : 2
-      }
+  [
+    {
+      '_id'   : '0x1',
+      'value' : 'dog',
+      'count' : 2
+    },
 
 
-      {
-        '_id'   : '0x2',
-        'value' : 'cat',
-        'count' : 1
-      }
+    {
+      '_id'   : '0x2',
+      'value' : 'cat',
+      'count' : 1
+    }
+  ]
 
-    ````
+````
 
   and this index item
 
-    ````javascript
+````javascript
 
-      {
-        '_id'        : '50c11759a04745961e000001'
+    {
+      '_id'        : '50c11759a04745961e000001'
 
-        'model_type' : 'Article',
-        'model_id'   : '50c11775a04745461f000001'
+      'model_type' : 'Article',
+      'model_id'   : '50c11775a04745461f000001'
 
-        'tokens'     : ['0x1', '0x2'],
+      'tokens'     : ['0x1', '0x2'],
 
-        'score'      : 10,
+      'score'      : 10,
 
-        'keyword_scores' : {
-          '0x1' : 2,
-          '0x2' : 1
-        },
+      'keyword_scores' : {
+        '0x1' : 2,
+        '0x2' : 1
+      },
 
-        'fulltext_scores' : {
-        }
+      'fulltext_scores' : {
       }
+    }
 
 
-    ````
+````
 
   being built
 
