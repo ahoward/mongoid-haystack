@@ -73,12 +73,13 @@ module Mongoid
 
             keyword_scores = Hash.new{|h,k| h[k] = 0}
             fulltext_scores = Hash.new{|h,k| h[k] = 0}
+            token_ids = []
 
             Token.values_for(keywords).each do |value|
               token = Token.add(value)
               id = token.id
 
-              index.tokens.push(id)
+              token_ids.push(id)
               keyword_scores[id] += 1
             end
 
@@ -86,7 +87,7 @@ module Mongoid
               token = Token.add(value)
               id = token.id
 
-              index.tokens.push(id)
+              token_ids.push(id)
               fulltext_scores[id] += 1
             end
 
@@ -96,7 +97,7 @@ module Mongoid
             index.score = score if score
             index.facets = facets if facets
 
-            index.tokens = index.tokens.uniq
+            index.token_ids = token_ids
 
             index.save!
           end
@@ -105,16 +106,12 @@ module Mongoid
         def remove(*args)
           models_for(*args) do |model|
             index = where(:model_type => model.class.name, :model_id => model.id).first
-
-            if index
-              subtract(index)
-              index.destroy
-            end
+            index.destroy if index
           end
         end
 
         def subtract(index)
-          tokens = Token.where(:id.in => index.tokens)
+          tokens = index.tokens
 
           n = 0
 
@@ -145,9 +142,11 @@ module Mongoid
         end
       end
 
+      before_destroy{|index| Index.subtract(index)}
+
       belongs_to(:model, :polymorphic => true)
 
-      field(:tokens, :type => Array, :default => [])
+      has_and_belongs_to_many(:tokens, :class_name => '::Mongoid::Haystack::Token', :inverse_of => nil)
       field(:score, :type => Integer, :default => 0)
       field(:keyword_scores, :type => Hash, :default => proc{ Hash.new{|h,k| h[k] = 0} })
       field(:fulltext_scores, :type => Hash, :default => proc{ Hash.new{|h,k| h[k] = 0} })
@@ -156,7 +155,7 @@ module Mongoid
       index({:model_type => 1})
       index({:model_id => 1})
 
-      index({:tokens => 1})
+      index({:token_ids => 1})
       index({:score => 1})
       index({:keyword_scores => 1})
       index({:fulltext_scores => 1})

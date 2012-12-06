@@ -157,11 +157,11 @@ Testing Mongoid::Haystack do
     assert{ b.haystack_index.score == 1 }
 
     assert do
-      Mongoid::Haystack::Token.where(:id.in => a.haystack_index.tokens).map(&:value).sort ==
+      a.haystack_index.tokens.map(&:value).sort ==
         ["black", "cat", "good", "men", "time"]
     end
     assert do
-      Mongoid::Haystack::Token.where(:id.in => b.haystack_index.tokens).map(&:value).sort ==
+      b.haystack_index.tokens.map(&:value).sort ==
         ["cat", "good", "men", "time", "white"]
     end
 

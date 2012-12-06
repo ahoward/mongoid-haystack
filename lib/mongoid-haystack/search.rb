@@ -8,20 +8,20 @@ module Mongoid
       conditions = {}
       order = []
 
-      op = :tokens.in
+      op = :token_ids.in
 
     #
       case
         when options[:all]
-          op = :tokens.all
+          op = :token_ids.all
           search += Coerce.string(options[:all]) 
 
         when options[:any]
-          op = :tokens.in
+          op = :token_ids.in
           search += Coerce.string(options[:any]) 
 
         when options[:in]
-          op = :tokens.in
+          op = :token_ids.in
           search += Coerce.string(options[:in]) 
       end
 
