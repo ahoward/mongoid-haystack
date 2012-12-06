@@ -226,8 +226,8 @@ pulling objects back out in a search involved these logical steps:
 
 - using the count for each token, plus the global token count that has been
   tracked we can decide to order the results by relatively rare words first
-  an, all else being equal (same rarity), the order in which the user typed
-  the words
+  and, all else being equal (same rarity bin: 0.10, 0.20, 0.30, etc.), the
+  order in which the user typed the words
 
 - this approach is applies and is valid whether we are doing a union (or) or
   intersection (all) search and regardless of whether facets are included in
