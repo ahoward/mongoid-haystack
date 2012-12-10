@@ -75,18 +75,20 @@ module Mongoid
             fulltext_scores = Hash.new{|h,k| h[k] = 0}
             token_ids = []
 
-            Token.values_for(keywords).each do |value|
-              token = Token.add(value)
+            values = Token.values_for(keywords)
+            tokens = Token.add(values)
+            values.each do |value|
+              token = tokens.detect{|token| token.value == value}
               id = token.id
-
               token_ids.push(id)
               keyword_scores[id] += 1
             end
 
-            Token.values_for(fulltext).each do |value|
-              token = Token.add(value)
+            values = Token.values_for(fulltext)
+            tokens = Token.add(values)
+            values.each do |value|
+              token = tokens.detect{|token| token.value == value}
               id = token.id
-
               token_ids.push(id)
               fulltext_scores[id] += 1
             end
@@ -113,19 +115,23 @@ module Mongoid
         def subtract(index)
           tokens = index.tokens
 
-          n = 0
+          counts = {}
 
           tokens.each do |token|
             keyword_score = index.keyword_scores[token.id].to_i
             fulltext_score = index.fulltext_scores[token.id].to_i
 
-            i = keyword_score + fulltext_score
-            token.inc(:count, -i)
+            count = keyword_score + fulltext_score
 
-            n += i
+            counts[count] ||= []
+            counts[count].push(token.id)
           end
 
-          Count[:tokens].inc(-n)
+          counts.each do |count, token_ids|
+            Token.where(:id.in => token_ids).inc(:count, -count)
+          end
+
+          tokens
         end
 
         def models_for(*args, &block)
@@ -147,6 +153,7 @@ module Mongoid
       belongs_to(:model, :polymorphic => true)
 
       has_and_belongs_to_many(:tokens, :class_name => '::Mongoid::Haystack::Token', :inverse_of => nil)
+
       field(:score, :type => Integer, :default => 0)
       field(:keyword_scores, :type => Hash, :default => proc{ Hash.new{|h,k| h[k] = 0} })
       field(:fulltext_scores, :type => Hash, :default => proc{ Hash.new{|h,k| h[k] = 0} })

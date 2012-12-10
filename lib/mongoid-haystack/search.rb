@@ -67,10 +67,10 @@ module Mongoid
       positions = {}
       tokens.each_with_index{|token, index| positions[token] = index + 1}
 
-      t = Count[:tokens].value.to_f
+      total = Token.total.to_f
 
       tokens.sort! do |a,b|
-        [b.rarity_bin(t), positions[b]] <=> [a.rarity_bin(t), positions[a]]
+        [b.rarity_bin(total), positions[b]] <=> [a.rarity_bin(total), positions[a]]
       end
 
       tokens

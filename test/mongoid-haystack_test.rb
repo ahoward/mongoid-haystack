@@ -7,6 +7,8 @@ Testing Mongoid::Haystack do
     a = A.create!(:content => 'dog')
     b = B.create!(:content => 'cat')
 
+    Mongoid::Haystack.index(a)
+    Mongoid::Haystack.index(a)
     assert{ Mongoid::Haystack.index(a) }
     assert{ Mongoid::Haystack.index(b) }
 
@@ -67,7 +69,7 @@ Testing Mongoid::Haystack do
 
     assert{ Mongoid::Haystack::Token.count == 2 }
     assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog ) }
-    assert{ Mongoid::Haystack::Count[:tokens].value == 3 }
+    assert{ Mongoid::Haystack::Token.total == 3 }
   end
 
   testing 'that removing a model from the index decrements counts appropriately' do
@@ -81,27 +83,27 @@ Testing Mongoid::Haystack do
 
     assert{ Mongoid::Haystack::Token.where(:value => 'cat').first.count == 2 }
     assert{ Mongoid::Haystack::Token.where(:value => 'dog').first.count == 2 }
-    assert{ Mongoid::Haystack::Count[:tokens].value == 4 }
+    assert{ Mongoid::Haystack::Token.total == 4 }
     assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog ) }
     assert{ Mongoid::Haystack.unindex(c) }
     assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog ) }
-    assert{ Mongoid::Haystack::Count[:tokens].value == 2 }
+    assert{ Mongoid::Haystack::Token.total == 2 }
     assert{ Mongoid::Haystack::Token.where(:value => 'cat').first.count == 1 }
     assert{ Mongoid::Haystack::Token.where(:value => 'dog').first.count == 1 }
 
-    assert{ Mongoid::Haystack::Count[:tokens].value == 2 }
+    assert{ Mongoid::Haystack::Token.total == 2 }
     assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog ) }
     assert{ Mongoid::Haystack.unindex(b) }
     assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog ) }
-    assert{ Mongoid::Haystack::Count[:tokens].value == 1 }
+    assert{ Mongoid::Haystack::Token.total == 1 }
     assert{ Mongoid::Haystack::Token.where(:value => 'cat').first.count == 0 }
     assert{ Mongoid::Haystack::Token.where(:value => 'dog').first.count == 1 }
 
-    assert{ Mongoid::Haystack::Count[:tokens].value == 1 }
+    assert{ Mongoid::Haystack::Token.total == 1 }
     assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog ) }
     assert{ Mongoid::Haystack.unindex(a) }
     assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog ) }
-    assert{ Mongoid::Haystack::Count[:tokens].value == 0 }
+    assert{ Mongoid::Haystack::Token.total == 0 }
     assert{ Mongoid::Haystack::Token.where(:value => 'cat').first.count == 0 }
     assert{ Mongoid::Haystack::Token.where(:value => 'dog').first.count == 0 }
   end

@@ -9,17 +9,21 @@ module Mongoid
         end
 
         def add(value)
-          token =
-            Haystack.find_or_create(
-              ->{ where(:value => value).first },
-              ->{ create!(:value => value) }
-            )
+          values = Array(value)
+          values.flatten!
+          values.compact!
 
-          token.inc(:count, 1)
+          existing = where(:value.in => values)
+          missing = values - existing.map(&:value)
 
-          Count[:tokens].inc(1)
+          docs = missing.map{|value| {:_id => Token.next_hex_id, :value => value}}
+          collection.insert(docs, [:continue_on_error])
 
-          token
+          tokens = where(:value.in => values)
+
+          tokens.inc(:count, 1)
+
+          value.is_a?(Array) ? tokens : tokens.first
         end
 
         def sequence
@@ -28,6 +32,10 @@ module Mongoid
 
         def next_hex_id
           "0x#{ hex = sequence.next.to_s(16) }"
+        end
+
+        def total
+          sum(:count)
         end
       end
 
@@ -38,19 +46,19 @@ module Mongoid
       index({:value => 1}, {:unique => true})
       index({:count => 1})
 
-      def frequency(n_tokens = Count[:tokens].value.to_f)
+      def frequency(n_tokens = Token.total.value.to_f)
         (count / n_tokens).round(2)
       end
 
-      def frequency_bin(n_tokens = Count[:tokens].value.to_f)
+      def frequency_bin(n_tokens = Token.total.value.to_f)
         (frequency(n_tokens) * 10).truncate
       end
 
-      def rarity(n_tokens = Count[:tokens].value.to_f)
+      def rarity(n_tokens = Token.total.value.to_f)
         ((n_tokens - count) / n_tokens).round(2)
       end
 
-      def rarity_bin(n_tokens = Count[:tokens].value.to_f)
+      def rarity_bin(n_tokens = Token.total.value.to_f)
         (rarity(n_tokens) * 10).truncate
       end
     end

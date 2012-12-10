@@ -5,7 +5,6 @@ module Mongoid
         [
           Mongoid::Haystack::Token,
           Mongoid::Haystack::Index,
-          Mongoid::Haystack::Count,
           Mongoid::Haystack::Sequence
         ]
       end
