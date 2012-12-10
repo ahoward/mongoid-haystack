@@ -17,7 +17,10 @@ module Mongoid
           missing = values - existing.map(&:value)
 
           docs = missing.map{|value| {:_id => Token.next_hex_id, :value => value}}
-          collection.insert(docs, [:continue_on_error]) unless docs.empty?
+          unless docs.empty?
+            collection = mongo_session.with(:safe => false)[collection_name]
+            collection.insert(docs, [:continue_on_error])
+          end
 
           tokens = where(:value.in => values)
 

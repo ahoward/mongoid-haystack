@@ -9,6 +9,15 @@ DESCRIPTION
   mongoid-haystack provides a zero-config, POLS, pure mongo, fulltext search
   solution for your mongoid models.
 
+INSTALL
+-------
+
+  rubygems: gem intstall 'mongoid-haystack'
+
+  Gemfile: gem 'mongoid-haystack'
+
+  rake db:mongoid:create_indexes  # important!!!!!!!!
+
 SYNOPSIS
 --------
 

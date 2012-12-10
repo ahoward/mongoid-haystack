@@ -3,7 +3,7 @@
 
 Gem::Specification::new do |spec|
   spec.name = "mongoid-haystack"
-  spec.version = "1.1.0"
+  spec.version = "1.2.0"
   spec.platform = Gem::Platform::RUBY
   spec.summary = "mongoid-haystack"
   spec.description = "a mongoid 3 zero-config, zero-integration, POLS pure mongo fulltext solution"
@@ -22,7 +22,6 @@ Gem::Specification::new do |spec|
  "lib/app/models/mongoid/haystack/token.rb",
  "lib/mongoid-haystack",
  "lib/mongoid-haystack.rb",
- "lib/mongoid-haystack/count.rb",
  "lib/mongoid-haystack/index.rb",
  "lib/mongoid-haystack/search.rb",
  "lib/mongoid-haystack/sequence.rb",
@@ -58,7 +57,11 @@ Gem::Specification::new do |spec|
   spec.test_files = nil
 
   
-    spec.add_dependency(*["mongoid", "~> 3.0"])
+    spec.add_dependency(*["mongoid", "~> 3.0.14"])
+  
+    spec.add_dependency(*["moped", "~> 1.3.1"])
+  
+    spec.add_dependency(*["origin", "~> 1.0.11"])
   
     spec.add_dependency(*["map", "~> 6.2"])
   

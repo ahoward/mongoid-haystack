@@ -28,6 +28,12 @@ module Mongoid
         end
       end
 
+      def create_indexes!
+        models.each do |model|
+          modle.create_indexes
+        end
+      end
+
       def destroy_all
         models.map{|model| model.destroy_all}
       end
