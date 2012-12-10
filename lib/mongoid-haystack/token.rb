@@ -24,6 +24,8 @@ module Mongoid
 
           tokens = where(:value.in => values)
 
+          raise "wtf - not all tokens accounted for!?" unless tokens.count == values.uniq.size
+
           tokens.inc(:count, 1)
 
           value.is_a?(Array) ? tokens : tokens.first
