@@ -86,6 +86,13 @@ module Mongoid
           results = Haystack.search(*args, &block)
         end
 
+        def search_index_all!
+          all.each do |doc|
+            Mongoid::Haystack::Index.remove(doc)
+            Mongoid::Haystack::Index.add(doc)
+          end
+        end
+
         after_save do |doc|
           begin
             Mongoid::Haystack::Index.add(doc) if doc.persisted?
@@ -106,6 +113,11 @@ module Mongoid
       end
 
       InstanceMethods = proc do
+        def search_index!
+          doc = self
+          Mongoid::Haystack::Index.remove(doc)
+          Mongoid::Haystack::Index.add(doc)
+        end
       end
 
       def Search.included(other)
