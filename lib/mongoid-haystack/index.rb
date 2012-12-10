@@ -77,8 +77,9 @@ module Mongoid
 
             values = Token.values_for(keywords)
             tokens = Token.add(values)
+            token_index = tokens.inject({}){|hash, token| hash[token.value] = token; hash}
             values.each do |value|
-              token = tokens.detect{|token| token.value == value}
+              token = token_index.fetch(value)
               id = token.id
               token_ids.push(id)
               keyword_scores[id] += 1
@@ -86,8 +87,9 @@ module Mongoid
 
             values = Token.values_for(fulltext)
             tokens = Token.add(values)
+            token_index = tokens.inject({}){|hash, token| hash[token.value] = token; hash}
             values.each do |value|
-              token = tokens.detect{|token| token.value == value}
+              token = token_index.fetch(value)
               id = token.id
               token_ids.push(id)
               fulltext_scores[id] += 1

@@ -9,10 +9,14 @@ module Mongoid
         end
 
         def add(value)
+        # handle a value or array of values - which may contain dups
+        #
           values = Array(value)
           values.flatten!
           values.compact!
 
+        # ensure that a token exists for each value seen
+        #
           existing = where(:value.in => values)
           missing = values - existing.map(&:value)
 
@@ -22,13 +26,37 @@ module Mongoid
             collection.insert(docs, [:continue_on_error])
           end
 
+        # new we should have one token per uniq value
+        #
           tokens = where(:value.in => values)
 
-          raise "wtf - not all tokens accounted for!?" unless tokens.count == values.uniq.size
+        # batch update the counts on the tokens by the number of times each
+        # value was seen in the list
+        #
+        #   'dog dog' #=> increment the 'dog' token's count by 2
+        #
+          counts = {}
+          token_index = tokens.inject({}){|hash, token| hash[token.value] = token; hash}
+          value_index = values.inject({}){|hash, value| hash[value] ||= []; hash[value].push(value); hash}
 
-          tokens.inc(:count, 1)
+          values.each do |value|
+            token = token_index[value]
+            count = value_index[value].size
+            counts[count] ||= []
+            counts[count].push(token.id)
+          end
 
+          counts.each do |count, token_ids|
+            Token.where(:id.in => token_ids).inc(:count, count)
+          end
+
+        # return an array or single token depending on whether a list or
+        # single value was added
+        #
           value.is_a?(Array) ? tokens : tokens.first
+        end
+
+        def subtract(tokens)
         end
 
         def sequence
