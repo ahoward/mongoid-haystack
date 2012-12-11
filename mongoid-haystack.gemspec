@@ -16,7 +16,6 @@ Gem::Specification::new do |spec|
  "lib/app/models",
  "lib/app/models/mongoid",
  "lib/app/models/mongoid/haystack",
- "lib/app/models/mongoid/haystack/count.rb",
  "lib/app/models/mongoid/haystack/index.rb",
  "lib/app/models/mongoid/haystack/sequence.rb",
  "lib/app/models/mongoid/haystack/token.rb",
