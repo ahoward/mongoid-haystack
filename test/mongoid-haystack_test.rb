@@ -268,8 +268,6 @@ Testing Mongoid::Haystack do
 
     cb = Mongoid::Haystack::Token.all.inject({}){|hash, token| hash.update token.id => token.value}
 
-#require 'pry'
-#binding.pry
     assert{ ca.size == Mongoid::Haystack::Token.count }
     assert{ cb.size == Mongoid::Haystack::Token.count }
     assert{ ca == cb }
