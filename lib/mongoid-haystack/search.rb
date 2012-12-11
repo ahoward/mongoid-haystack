@@ -55,11 +55,15 @@ module Mongoid
       end
 
     #
-      query = Index.where(conditions)
-      query = query.order_by(order)
-      query = query.only(:_id, :model_type, :model_id)
-      block.call(query) if block
-      query
+      query =
+        Index.where(conditions)
+          .order_by(order)
+            .only(:_id, :model_type, :model_id)
+
+      query = block.call(query) if block
+
+    #
+      results = options[:raw] ? query : denormalize(query)
     end
 
     def search_tokens_for(search)
