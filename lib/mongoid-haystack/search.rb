@@ -95,7 +95,7 @@ module Mongoid
 
         after_save do |doc|
           begin
-            Mongoid::Haystack::Index.add(doc) if doc.persisted?
+            doc.search_index! if doc.persisted?
           rescue Object
             nil
           end
@@ -103,7 +103,7 @@ module Mongoid
 
         after_destroy do |doc|
           begin
-            Mongoid::Haystack::Index.remove(doc)
+            doc.search_unindex! if doc.destroyed?
           rescue Object
             nil
           end
@@ -117,6 +117,11 @@ module Mongoid
           doc = self
           Mongoid::Haystack::Index.remove(doc)
           Mongoid::Haystack::Index.add(doc)
+        end
+
+        def search_unindex!
+          doc = self
+          Mongoid::Haystack::Index.remove(doc)
         end
       end
 
