@@ -1,1 +1,0 @@
-Mongoid::Haystack::Count
