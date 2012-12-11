@@ -237,19 +237,63 @@ Testing Mongoid::Haystack do
     assert{ Mongoid::Haystack.search('dog').first.model == b }
   end
 
+##
+#
+  testing 'that re-indexing a class is idempotent' do
+    k = new_klass do
+      field(:title)
+      field(:body)
+
+      def to_haystack
+        { :keywords => title, :fulltext => body }
+      end
+    end
+
+    n = 10
+
+    n.times do
+      k.create!(:title => 'the cats and dogs', :body => 'now now is is the the time time for for all all good good men women')
+    end
+
+    n.times do
+      k.create!(:title => 'a b c abc xyz abc xyz b', :body => 'pdq pdq pdq xyz teh ngr am')
+    end
+
+    assert{ Mongoid::Haystack.search('cat').count == n }
+    assert{ Mongoid::Haystack.search('pdq').count == n }
+
+    ca = Mongoid::Haystack::Token.all.inject({}){|hash, token| hash.update token.id => token.value}
+
+    assert{ k.search_index_all! }
+
+    cb = Mongoid::Haystack::Token.all.inject({}){|hash, token| hash.update token.id => token.value}
+
+#require 'pry'
+#binding.pry
+    assert{ ca.size == Mongoid::Haystack::Token.count }
+    assert{ cb.size == Mongoid::Haystack::Token.count }
+    assert{ ca == cb }
+  end
+
 protected
 
   def new_klass(&block)
-    Object.send(:remove_const, :K) if Object.send(:const_defined?, :K)
+    if Object.send(:const_defined?, :K)
+      Object.const_get(:K).destroy_all
+      Object.send(:remove_const, :K)
+    end
 
     k = Class.new(A) do
       self.default_collection_name = :ks
       def self.name() 'K' end
-      include ::Mongoid::Haystack::Search
-      class_eval(&block) if block
     end
 
     Object.const_set(:K, k)
+
+    k.class_eval do
+      include ::Mongoid::Haystack::Search
+      class_eval(&block) if block
+    end
 
     k
   end
@@ -262,4 +306,6 @@ protected
     [A, B, C].map{|m| m.destroy_all}
     Mongoid::Haystack.destroy_all
   end
+
+  at_exit{ K.destroy_all if defined?(K) }
 end
