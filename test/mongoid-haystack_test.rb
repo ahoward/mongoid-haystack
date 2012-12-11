@@ -280,6 +280,17 @@ Testing Mongoid::Haystack do
      assert{ begin; Mongoid::Haystack::Index.add(o); rescue Object => e; e.is_a?(ArgumentError); end }
    end
 
+##
+#
+  testing 'that results can be expanded efficiently' do
+     k = new_klass
+
+     3.times{ k.create! :content => 'cats' }
+
+     results = assert{ Mongoid::Haystack.search('cat') }
+     assert{ Mongoid::Haystack.models_for(results).map{|model| model.class} == [k, k, k] }
+  end
+
 protected
 
   def new_klass(&block)
@@ -301,6 +312,10 @@ protected
     end
 
     k
+  end
+
+  def models_for(*args, &block)
+    Mongoid::Haystack.models_for(*args, &block)
   end
 
   H = Mongoid::Haystack

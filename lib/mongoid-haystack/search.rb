@@ -55,16 +55,11 @@ module Mongoid
       end
 
     #
-      Index.where(conditions).order_by(order).only(:_id, :model_type, :model_id)#.tap do |results|
-        #results.extend(Denormalize)
-      #end
-    end
-
-    ::Mongoid::Criteria.class_eval do
-      def models
-        ::Mongoid::Haystack.denormalize(self)
-        map(&:model)
-      end
+      query = Index.where(conditions)
+      query = query.order_by(order)
+      query = query.only(:_id, :model_type, :model_id)
+      block.call(query) if block
+      query
     end
 
     def search_tokens_for(search)
@@ -140,18 +135,6 @@ module Mongoid
       end
     end
 
-    module Denormalize
-      def denormalize
-        ::Mongoid::Haystack.denormalize(self)
-        self
-      end
-
-      def models
-        denormalize
-        map(&:model)
-      end
-    end
-
     def Haystack.denormalize(results)
       queries = Hash.new{|h,k| h[k] = []}
 
@@ -206,6 +189,14 @@ module Mongoid
       to_ignore.reverse.each{|i| results.delete_at(i)}
 
       results.to_a
+    end
+
+    def Haystack.expand(*args, &block)
+      Haystack.denormalize(*args, &block)
+    end
+
+    def Haystack.models_for(*args, &block)
+      Haystack.denormalize(*args, &block).map(&:model)
     end
   end
 end

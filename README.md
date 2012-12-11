@@ -53,6 +53,19 @@ SYNOPSIS
 
     article = results.first.model
 
+  # by default searching returns Mongoid::Haystack::Index objects. you'll want to
+  # expand these results to the models they reference in your views, but avoid
+  # doing an N+1 query.  to do this simply call Haystack.models_for on the result
+  # set and the models will be eager loaded using only as many queries as their
+  # are model types in your result set.  although a slightly less beautiful
+  # api compared to 'results.models' it avoids issues with whichever
+  # pagination plugin you might be using since the results of a normal
+  # Mongoid::Criteria objects - just like every other Mongoid query
+  #
+
+    @results = Mongoid::Haystack.search('needle').page(params[:page]).per(10)
+    @models = Mongoid::Haystack.models_for(results)
+
 
   # haystack stems the search terms and does score based sorting all using a
   # fast b-tree 
@@ -61,11 +74,13 @@ SYNOPSIS
     b = Article.create!(:content => 'dogs eat cats')
     c = Article.create!(:content => 'dogs dogs dogs')
 
-    results = Article.search('dogs cats').models
-    results == [b, a, c] #=> true
+    results = Article.search('dogs cats')
+    models = Mongoid::Haystack.models_for(results)
+    models == [b, a, c] #=> true
 
-    results = Article.search('awesome').models
-    results == [a] #=> true
+    results = Article.search('awesome')
+    models = Mongoid::Haystack.models_for(results)
+    models == [a] #=> true
 
 
   # cross models searching is supported out of the box, and models can
@@ -105,23 +120,12 @@ SYNOPSIS
     results = Mongoid::Haystack.search('rock')
     results.count #=> 3
 
-    models = results.models
+    models = Mongoid::Haystack.models_for(results)
     models == [a1, a2, c]  #=> true. articles first beause we generally score them higher
 
     results = Mongoid::Haystack.search('hot')
-    models = results.models
+    models = Mongoid::Haystack.models_for(results)
     models == [a1, a2]  #=> true. because keywords score highter than general fulltext
-
-
-  # by default searching returns Mongoid::Haystack::Index objects. you'll want
-  # to expand these results to the models they reference in your views, but
-  # avoid doing an N+1 query.  to do this simply call #models on the result set
-  # and the models will be eager loaded using only as many queries as their are
-  # model types in your result set
-  #
-
-    @results = Mongoid::Haystack.search('needle').page(params[:page]).per(10)
-    @models = @results.models
 
 
   # you can decorate your search items with arbirtrary meta data and filter
