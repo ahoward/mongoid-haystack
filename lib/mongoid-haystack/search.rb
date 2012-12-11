@@ -55,8 +55,28 @@ module Mongoid
       end
 
     #
-      Index.where(conditions).order_by(order).tap do |results|
-        results.extend(Denormalize)
+      query = Index.where(conditions).order_by(order)
+      Results.for(query)
+    end
+
+    class Results
+      instance_methods.each{|m| undef_method m unless m =~ /^__|object_id/}
+
+      def Results.for(query)
+        new(query)
+      end
+
+      def initialize(query)
+        @query = query
+      end
+
+      def method_missing(method, *args, &block)
+        @query.send(method, *args, &block)
+      end
+
+      def models
+        ::Mongoid::Haystack.denormalize(@query)
+        map(&:model)
       end
     end
 
@@ -130,18 +150,6 @@ module Mongoid
       ensure
         other.instance_eval(&ClassMethods)
         other.class_eval(&InstanceMethods)
-      end
-    end
-
-    module Denormalize
-      def denormalize
-        ::Mongoid::Haystack.denormalize(self)
-        self
-      end
-
-      def models
-        denormalize
-        map(&:model)
       end
     end
 
