@@ -29,9 +29,7 @@ module Mongoid
       end
 
       def create_indexes
-        models.each do |model|
-          modle.create_indexes
-        end
+        models.each{|model| model.create_indexes}
       end
 
       def destroy_all

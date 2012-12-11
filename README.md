@@ -18,6 +18,21 @@ INSTALL
 
   rake db:mongoid:create_indexes  # important!!!!!!!!
 
+````ruby
+
+    # you might want this in lib/tasks/db.rake
+
+    namespace :db do
+      namespace :mongoid do
+        task :create_indexes do
+          Mongoid::Haystack.create_indexes
+        end
+      end
+    end
+
+
+````
+
 SYNOPSIS
 --------
 
