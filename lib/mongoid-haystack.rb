@@ -87,3 +87,11 @@
       extend Haystack
     end
   end
+
+##
+#
+  if defined?(Rails)
+    class Mongoid::Haystack::Engine < Rails::Engine
+      paths['app/models'] = File.dirname(__FILE__)
+    end
+  end
