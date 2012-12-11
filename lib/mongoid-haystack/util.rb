@@ -28,7 +28,7 @@ module Mongoid
         end
       end
 
-      def create_indexes!
+      def create_indexes
         models.each do |model|
           modle.create_indexes
         end
