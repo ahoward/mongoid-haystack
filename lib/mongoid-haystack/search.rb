@@ -124,13 +124,6 @@ module Mongoid
       query
     end
 
-    module Denormalization
-      def models
-        ::Mongoid::Haystack.denormalize(self)
-        map(&:model)
-      end
-    end
-
     module Pagination
       def paginate(*args, &block)
         list = self
@@ -156,9 +149,7 @@ module Mongoid
             list.skip(skip).limit(limit)
           end
 
-        result.extend(Result)
-
-        result.paginate.update(
+        result._paginated.update(
           :total_pages  => (count / size.to_f).ceil,
           :num_pages    => (count / size.to_f).ceil,
           :current_page => page
@@ -167,17 +158,43 @@ module Mongoid
         result
       end
 
-      module Result
-        def paginate
-          @paginate ||= Map.new
+      def _paginated
+        @_paginated ||= Map.new
+      end
+
+      def method_missing(method, *args, &block)
+        if respond_to?(:_paginated) and _paginated.has_key?(method) and args.empty? and block.nil?
+          _paginated[method]
+        else
+          super
+        end
+      end
+    end
+
+    module Denormalization
+      def models
+        Results.for(query = self)
+      end
+
+      def _denormalized
+        @_denormalized ||= (is_a?(Mongoid::Criteria) ? ::Mongoid::Haystack.denormalize(self) : self)
+      end
+
+      class Results < ::Array
+        include ::Mongoid::Haystack::Pagination
+
+        attr_accessor :query
+
+        def Results.for(query)
+          Results.new.tap do |results|
+            results.query = query
+            results.replace(query._denormalized)
+            results._paginated.replace(query._paginated) rescue nil
+          end
         end
 
-        def method_missing(method, *args, &block)
-          if paginate.has_key?(method) and args.empty? and block.nil?
-            paginate[method]
-          else
-            super
-          end
+        def models
+          self
         end
       end
     end
@@ -201,38 +218,48 @@ module Mongoid
     def Haystack.denormalize(results)
       queries = Hash.new{|h,k| h[k] = []}
 
-      results = results.to_a.flatten.compact
-
       results.each do |result|
         model_type = result[:model_type]
         model_id = result[:model_id]
-        model_class = model_type.constantize
+        model_class = eval(model_type) rescue next
         queries[model_class].push(model_id)
       end
 
+=begin
       index = Hash.new{|h,k| h[k] = {}}
+=end
 
-      queries.each do |model_class, model_ids|
-        models = 
-          begin
-            model_class.find(model_ids)
-          rescue Mongoid::Errors::DocumentNotFound
-            model_ids.map do |model_id|
-              begin
-                model_class.find(model_id)
-              rescue Mongoid::Errors::DocumentNotFound
-                nil
+      models =
+        queries.map do |model_class, model_ids|
+          model_class_models =
+            begin
+              model_class.find(model_ids)
+            rescue Mongoid::Errors::DocumentNotFound
+              model_ids.map do |model_id|
+                begin
+                  model_class.find(model_id)
+                rescue Mongoid::Errors::DocumentNotFound
+                  nil
+                end
               end
             end
+
+=begin
+          model_class_models.each do |model|
+            index[model.class.name] ||= Hash.new
+            next unless model
+            index[model.class.name][model.id.to_s] = model
           end
+=end
 
-        models.each do |model|
-          index[model.class.name] ||= Hash.new
-          next unless model
-          index[model.class.name][model.id.to_s] = model
+          model_class_models
         end
-      end
 
+      models.flatten!
+      models.compact!
+      models
+
+=begin
       to_ignore = []
 
       results.each_with_index do |result, i|
@@ -245,13 +272,16 @@ module Mongoid
           result.model = model
         end
 
-        result.model.freeze
-        result.freeze
+        result.model
+        result
       end
 
-      to_ignore.reverse.each{|i| results.delete_at(i)}
+      to_ignore.reverse.each do |index|
+        models.delete_at(index)
+      end
+=end
 
-      results
+      models
     end
 
     def Haystack.expand(*args, &block)
@@ -259,7 +289,7 @@ module Mongoid
     end
 
     def Haystack.models_for(*args, &block)
-      Haystack.denormalize(*args, &block).map(&:model)
+      Haystack.denormalize(*args, &block)
     end
   end
 end

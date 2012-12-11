@@ -16,20 +16,20 @@ INSTALL
 
   Gemfile: gem 'mongoid-haystack'
 
-  rake db:mongoid:create_indexes  # important!!!!!!!!
+  rake db:mongoid:create_indexes  # IMPORTANT
 
 ````ruby
 
-    # you might want this in lib/tasks/db.rake
+    # you might want this in lib/tasks/db.rake ...
+    #
 
-    namespace :db do
-      namespace :mongoid do
-        task :create_indexes do
-          Mongoid::Haystack.create_indexes
+      namespace :db do
+        namespace :mongoid do
+          task :create_indexes do
+            Mongoid::Haystack.create_indexes
+          end
         end
       end
-    end
-
 
 ````
 
@@ -66,14 +66,18 @@ SYNOPSIS
   # your application models with the fewest possible queries.  note that
   # 'models' is a terminal operator.  that is to say it returns an array and,
   # afterwards, no more fancy query language is gonna work.
+  #
+    @results =
+      Mongoid::Haystack.search('needle').models
 
-    @results = Mongoid::Haystack.search('needle').models
-
-  # pagination is supported out of the box.  note that you should chain it
-  # *b4* any call to 'models'
-
-    @results = 
-      Mongoid::Haystack.search('needle').paginate(:page => 3, :size => 42).models
+  # pagination is supported *out of the box*.  note that you should chain it
+  # *b4* any call to 'models' as 'models' is a terminal operator: it returns
+  # an array and *not* a Mongoid::Criteria object
+  #
+    @models = 
+      Mongoid::Haystack.search('needle').
+        paginate(:page => 3, :size => 42).
+          models
 
 
   # haystack stems the search terms and does score based sorting all using a
@@ -83,17 +87,18 @@ SYNOPSIS
     b = Article.create!(:content => 'dogs eat cats')
     c = Article.create!(:content => 'dogs dogs dogs')
 
-    results = Article.search('dogs cats').map(&:model)
+    results = Article.search('dogs cats').models
     results == [b, a, c] #=> true
 
-    results = Article.search('awesome').map(&:model)
+    results = Article.search('awesome').models
     results == [a] #=> true
 
 
-  # cross models searching is supported out of the box, and models can
-  # customise how they are indexed:
+  # cross model searching (site search)is supported out of the box, and models
+  # can customise how they are indexed:
   #
   # - a global score lets some models appear hight in the global results
+  #
   # - keywords count more than fulltext 
   #
     class Article
@@ -127,16 +132,16 @@ SYNOPSIS
     results = Mongoid::Haystack.search('rock')
     results.count #=> 3
 
-    models = Mongoid::Haystack.models_for(results)
+    models = results.models
     models == [a1, a2, c]  #=> true. articles first beause we generally score them higher
 
     results = Mongoid::Haystack.search('hot')
-    models = Mongoid::Haystack.models_for(results)
+    models = results.models
     models == [a1, a2]  #=> true. because keywords score highter than general fulltext
 
 
   # you can decorate your search items with arbirtrary meta data and filter
-  # searches by it later.  this too uses a b-tree index.
+  # searches by it later.  this too uses a speedy b-tree index.
   #
     class Article
       include Mongoid::Document
@@ -163,7 +168,8 @@ SYNOPSIS
         :content => 'seen the needles and the damage done...'
       )
 
-    author_articles = Article.search('needle', :facets => {:author_id => author.id})
+    articles_for_teh_author =
+      Article.search('needle', :facets => {:author_id => author.id})
 
 
 ````
@@ -171,14 +177,16 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-there two main pathways to understand in the code.  shit going into the
-index, and shit coming out.
+there two main pathways to understand in the code.
+
+1) shit going into the into the index.
+2) shit coming out of the index.
 
 shit going in entails:
 
-- stem and stopword the search terms.
+- stem and stopword the search terms
 - create or update a new token for each
-- create an index item reference all the tokens with precomputed scores
+- create an index item referening all the tokens with precomputed scores
 
 for example the terms 'dog dogs cat' might result in these tokens
 
@@ -201,7 +209,7 @@ for example the terms 'dog dogs cat' might result in these tokens
 
 ````
 
-  and this index item
+  being created|updated and this index item
 
 
 ````javascript
@@ -230,25 +238,34 @@ for example the terms 'dog dogs cat' might result in these tokens
 
 being built
 
-in addition, some other information is tracked such and the total number of
-search tokens every discovered in the corpus
+
+some other information is tracked, but the two normal mongoid models
+
+- Mongoid::Haystack::Token
+- Mongoid::Haystack::Index
+
+are simple to look at and compromise 80% of the library functionality.
   
 
 
 a few things to notice:
   
-- the tokens are counted and auto-id'd using hex notation and a sequence
-  generator.  the reason for this is so that their ids are legit hash keys
-  in the keyword and fulltext score hashes.
+- tokens are counted and auto-id'd using hex notation and a sequence
+generator.  the reason for this is so that their ids are legit hash keys in
+the keyword and fulltext score hashes (they are also smaller than 12 byte
+object_ids or the words themselves). aka this sort can be contructed:
+
+````ruby
+    order_by('keyword_scores.0x1' => :desc, 'keyword_scores.0x.1' => :desc)
+````
 
 - the data structure above allows both filtering for index items that have
-  certain tokens, but also ordering them based on global, keyword, and
-  fulltext score without resorting to map-reduce: a b-tree index can be
-  used.
+certain tokens, but also ordering them based on global, keyword, and fulltext
+score without resorting to map-reduce: a b-tree index can be used.
 
 - all tokens have their text/stem stored exactly once.  aka: we do not store
-  'hugewords' all over the place but store it once and count occurances of
-  it to keep the total index much smaller
+'hugewords' all over the place but store it once and count occurances of it to
+keep the total index much smaller
 
 
 

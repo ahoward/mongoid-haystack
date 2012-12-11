@@ -301,7 +301,7 @@ Testing Mongoid::Haystack do
 
 ##
 #
-  testing 'pagination' do
+  testing 'basic pagination' do
      k = new_klass
      11.times{|i| k.create! :content => "cats #{ i }" }
 
@@ -324,6 +324,19 @@ Testing Mongoid::Haystack do
      b = k.all.sort_by{|m| m.content}
 
      assert{ a == b }
+  end
+
+##
+#
+  testing 'that pagination preserves the #model terminator' do
+     k = new_klass
+     11.times{|i| k.create! :content => "cats #{ i }" }
+
+     list = assert{ k.search('cat').paginate(:page => 1, :size => 2) }
+     assert{ list.is_a?(Mongoid::Criteria) }
+
+     models = assert{ list.models }
+     assert{ models.is_a?(Array) }
   end
 
 protected
