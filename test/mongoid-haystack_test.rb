@@ -273,6 +273,13 @@ Testing Mongoid::Haystack do
     assert{ ca == cb }
   end
 
+##
+#
+   testing 'that not just any model can be indexed' do
+     o = new_klass.create!
+     assert{ begin; Mongoid::Haystack::Index.add(o); rescue Object => e; e.is_a?(ArgumentError); end }
+   end
+
 protected
 
   def new_klass(&block)

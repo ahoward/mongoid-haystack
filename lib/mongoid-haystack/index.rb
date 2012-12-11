@@ -27,9 +27,14 @@ module Mongoid
 
       class << Index
         def add(*args)
+        # we all one or more models to the index..
+        #
           models_for(*args) do |model|
             config = nil
 
+          # ask the model how it wants to be indexed.  if it does not know,
+          # guess.
+          #
             if model.respond_to?(:to_haystack)
               config = Map.for(model.to_haystack)
             else
@@ -56,21 +61,37 @@ module Mongoid
                 )
             end
 
+          # blow up if no sane config was produced
+          #
+            unless %w( keywords fulltext facets score ).detect{|key| config.has_key?(key)}
+              raise ArgumentError, "you need to defined #{ model }#to_haystack"
+            end
+
+          # parse the config
+          #
             keywords = Array(config[:keywords]).join(' ')
             fulltext = Array(config[:fulltext]).join(' ')
             facets   = Map.for(config[:facets] || {})
             score    = config[:score]
 
+          # find or create an index item for this model
+          #
             index =
               Haystack.find_or_create(
                 ->{ where(:model => model).first },
                 ->{ new(:model => model) },
               )
 
+          # if we are updating an index we need to decrement old token counts
+          # before updating it
+          #
             if index.persisted?
               Index.subtract(index)
             end
 
+          # add tokens for both keywords and fulltext.  increment counts for
+          # both.
+          #
             keyword_scores = Hash.new{|h,k| h[k] = 0}
             fulltext_scores = Hash.new{|h,k| h[k] = 0}
             token_ids = []
@@ -95,6 +116,9 @@ module Mongoid
               fulltext_scores[id] += 1
             end
 
+          # our index item is complete with list of tokens, counts of each
+          # one, and a facet hash for this model
+          #
             index.keyword_scores = keyword_scores
             index.fulltext_scores = fulltext_scores
 
