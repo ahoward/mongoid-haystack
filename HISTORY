@@ -1,0 +1,5 @@
+1.2.0:
+  - faster indexing using bulk operators
+  - pagination support
+  - more tests
+  - more docs
