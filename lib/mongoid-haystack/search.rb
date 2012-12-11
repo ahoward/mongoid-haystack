@@ -63,6 +63,7 @@ module Mongoid
     ::Mongoid::Criteria.class_eval do
       def models
         ::Mongoid::Haystack.denormalize(self)
+        map(&:model)
       end
     end
 
