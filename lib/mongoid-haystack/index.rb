@@ -185,8 +185,7 @@ module Mongoid
       field(:fulltext_scores, :type => Hash, :default => proc{ Hash.new{|h,k| h[k] = 0} })
       field(:facets, :type => Hash, :default => {})
 
-      index({:model_type => 1})
-      index({:model_id => 1})
+      index({:model_type => 1, :model_id => 1}, :unique => true)
 
       index({:token_ids => 1})
       index({:score => 1})

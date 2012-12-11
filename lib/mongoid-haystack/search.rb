@@ -1,5 +1,62 @@
 module Mongoid
   module Haystack
+    module Search
+      ClassMethods = proc do
+        def search(*args, &block)
+          options = Map.options_for!(args)
+          options[:types] = Array(options[:types]).flatten.compact
+          options[:types].push(self)
+          args.push(options)
+          results = Haystack.search(*args, &block)
+        end
+
+        def search_index_all!
+          all.each do |doc|
+            Mongoid::Haystack::Index.remove(doc)
+            Mongoid::Haystack::Index.add(doc)
+          end
+        end
+
+        after_save do |doc|
+          begin
+            doc.search_index! if doc.persisted?
+          rescue Object
+            nil
+          end
+        end
+
+        after_destroy do |doc|
+          begin
+            doc.search_unindex! if doc.destroyed?
+          rescue Object
+            nil
+          end
+        end
+
+        has_one(:haystack_index, :as => :model, :class_name => '::Mongoid::Haystack::Index')
+      end
+
+      InstanceMethods = proc do
+        def search_index!
+          doc = self
+          Mongoid::Haystack::Index.remove(doc)
+          Mongoid::Haystack::Index.add(doc)
+        end
+
+        def search_unindex!
+          doc = self
+          Mongoid::Haystack::Index.remove(doc)
+        end
+      end
+
+      def Search.included(other)
+        super
+      ensure
+        other.instance_eval(&ClassMethods)
+        other.class_eval(&InstanceMethods)
+      end
+    end
+
     def search(*args, &block)
     #
       options = Map.options_for!(args)
@@ -60,11 +117,69 @@ module Mongoid
           .order_by(order)
             .only(:_id, :model_type, :model_id)
 
-      #query = block.call(query) if block
+      query.extend(Pagination)
 
-    #
-      #results = options[:raw] ? query : denormalize(query)
+      query.extend(Denormalization)
+
       query
+    end
+
+    module Denormalization
+      def models
+        ::Mongoid::Haystack.denormalize(self)
+        map(&:model)
+      end
+    end
+
+    module Pagination
+      def paginate(*args, &block)
+        list = self
+        options = Map.options_for!(args)
+
+        page = Integer(args.shift || options[:page] || 1)
+        size = Integer(args.shift || options[:size] || 42)
+
+        count =
+          if list.is_a?(Array)
+            list.size
+          else
+            list.count
+          end
+
+        limit = size
+        skip = (page - 1 ) * size
+        
+        result =
+          if list.is_a?(Array)
+            list.slice(skip, limit)
+          else
+            list.skip(skip).limit(limit)
+          end
+
+        result.extend(Result)
+
+        result.paginate.update(
+          :total_pages  => (count / size.to_f).ceil,
+          :num_pages    => (count / size.to_f).ceil,
+          :current_page => page
+        )
+
+        result
+      end
+
+      module Result
+        def paginate
+          @paginate ||= Map.new
+        end
+
+        def method_missing(method, *args, &block)
+          if paginate.has_key?(method) and args.empty? and block.nil?
+            paginate[method]
+          else
+            super
+          end
+        end
+      end
     end
 
     def search_tokens_for(search)
@@ -81,63 +196,6 @@ module Mongoid
       end
 
       tokens
-    end
-
-    module Search
-      ClassMethods = proc do
-        def search(*args, &block)
-          options = Map.options_for!(args)
-          options[:types] = Array(options[:types]).flatten.compact
-          options[:types].push(self)
-          args.push(options)
-          results = Haystack.search(*args, &block)
-        end
-
-        def search_index_all!
-          all.each do |doc|
-            Mongoid::Haystack::Index.remove(doc)
-            Mongoid::Haystack::Index.add(doc)
-          end
-        end
-
-        after_save do |doc|
-          begin
-            doc.search_index! if doc.persisted?
-          rescue Object
-            nil
-          end
-        end
-
-        after_destroy do |doc|
-          begin
-            doc.search_unindex! if doc.destroyed?
-          rescue Object
-            nil
-          end
-        end
-
-        has_one(:haystack_index, :as => :model, :class_name => '::Mongoid::Haystack::Index')
-      end
-
-      InstanceMethods = proc do
-        def search_index!
-          doc = self
-          Mongoid::Haystack::Index.remove(doc)
-          Mongoid::Haystack::Index.add(doc)
-        end
-
-        def search_unindex!
-          doc = self
-          Mongoid::Haystack::Index.remove(doc)
-        end
-      end
-
-      def Search.included(other)
-        super
-      ensure
-        other.instance_eval(&ClassMethods)
-        other.class_eval(&InstanceMethods)
-      end
     end
 
     def Haystack.denormalize(results)
@@ -193,7 +251,7 @@ module Mongoid
 
       to_ignore.reverse.each{|i| results.delete_at(i)}
 
-      results.to_a
+      results
     end
 
     def Haystack.expand(*args, &block)

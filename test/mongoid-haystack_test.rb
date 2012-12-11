@@ -7,8 +7,6 @@ Testing Mongoid::Haystack do
     a = A.create!(:content => 'dog')
     b = B.create!(:content => 'cat')
 
-    Mongoid::Haystack.index(a)
-    Mongoid::Haystack.index(a)
     assert{ Mongoid::Haystack.index(a) }
     assert{ Mongoid::Haystack.index(b) }
 
@@ -18,28 +16,13 @@ Testing Mongoid::Haystack do
 
 ##
 #
-  testing 'that results are returned denormalized unless :raw is specified' do
+  testing 'that results are returned as chainable Mongoid::Criteria' do
      k = new_klass
 
      3.times{ k.create! :content => 'cats' }
 
-     results = assert{ Mongoid::Haystack.search('cat', :raw => true) }
-     assert{ results.is_a?(Mongoid::Criteria) }
-
      results = assert{ Mongoid::Haystack.search('cat') }
-     assert{ results.is_a?(Array) }
-  end
-
-  testing 'that a block can be pased to refine (paginate) a query' do
-     k = new_klass
-
-     3.times{ k.create! :content => 'dogs' }
-
-     results = assert{ Mongoid::Haystack.search('dog') }
-     assert{ results.size == 3 }
-
-     results = assert{ Mongoid::Haystack.search('dog'){|q| q.limit(1) } }
-     assert{ results.size == 1 }
+     assert{ results.is_a?(Mongoid::Criteria) }
   end
 
 ##
@@ -140,7 +123,7 @@ Testing Mongoid::Haystack do
     a = A.create!(:content => 'dog')
 
     assert{ Mongoid::Haystack.index(A) }
-    assert{ Mongoid::Haystack.search('dog', :raw => true).explain['cursor'] =~ /BtreeCursor/i }
+    assert{ Mongoid::Haystack.search('dog').explain['cursor'] =~ /BtreeCursor/i }
   end
 
 ##
@@ -227,17 +210,17 @@ Testing Mongoid::Haystack do
     a = k.create!(:content => 'hello kitty', :to_haystack => { :keywords => 'cat', :facets => {:x => 42.0}})
     b = k.create!(:content => 'hello kitty', :to_haystack => { :keywords => 'cat', :facets => {:x => 4.20}})
 
-    assert{ Mongoid::Haystack.search('cat', :raw => true).where(:facets => {'x' => 42.0}).first.model == a }
-    assert{ Mongoid::Haystack.search('cat', :raw => true).where(:facets => {'x' => 4.20}).first.model == b }
+    assert{ Mongoid::Haystack.search('cat').where(:facets => {'x' => 42.0}).first.model == a }
+    assert{ Mongoid::Haystack.search('cat').where(:facets => {'x' => 4.20}).first.model == b }
 
-    assert{ Mongoid::Haystack.search('cat', :raw => true).where('facets.x' => 42.0).first.model == a }
-    assert{ Mongoid::Haystack.search('cat', :raw => true).where('facets.x' => 4.20).first.model == b }
+    assert{ Mongoid::Haystack.search('cat').where('facets.x' => 42.0).first.model == a }
+    assert{ Mongoid::Haystack.search('cat').where('facets.x' => 4.20).first.model == b }
 
-    assert{ Mongoid::Haystack.search('cat', :raw => true).where('facets' => {'x' => 42.0}).explain['cursor'] =~ /BtreeCursor/ }
-    assert{ Mongoid::Haystack.search('cat', :raw => true).where('facets' => {'x' => 4.20}).explain['cursor'] =~ /BtreeCursor/ }
+    assert{ Mongoid::Haystack.search('cat').where('facets' => {'x' => 42.0}).explain['cursor'] =~ /BtreeCursor/ }
+    assert{ Mongoid::Haystack.search('cat').where('facets' => {'x' => 4.20}).explain['cursor'] =~ /BtreeCursor/ }
 
-    assert{ Mongoid::Haystack.search('cat', :raw => true).where('facets.x' => 42.0).explain['cursor'] =~ /BtreeCursor/ }
-    assert{ Mongoid::Haystack.search('cat', :raw => true).where('facets.x' => 4.20).explain['cursor'] =~ /BtreeCursor/ }
+    assert{ Mongoid::Haystack.search('cat').where('facets.x' => 42.0).explain['cursor'] =~ /BtreeCursor/ }
+    assert{ Mongoid::Haystack.search('cat').where('facets.x' => 4.20).explain['cursor'] =~ /BtreeCursor/ }
   end
 
 ##
@@ -308,13 +291,39 @@ Testing Mongoid::Haystack do
 
 ##
 #
-  testing 'that results can be expanded efficiently' do
+  testing 'that results can be expanded efficiently if need be' do
      k = new_klass
-
      3.times{ k.create! :content => 'cats' }
 
-     results = assert{ Mongoid::Haystack.search('cat', :raw => true) }
-     #assert{ Mongoid::Haystack.models_for(results).map{|model| model.class} == [k, k, k] }
+     results = assert{ Mongoid::Haystack.search('cat') }
+     assert{ Mongoid::Haystack.models_for(results).map{|model| model.class} == [k, k, k] }
+  end
+
+##
+#
+  testing 'pagination' do
+     k = new_klass
+     11.times{|i| k.create! :content => "cats #{ i }" }
+
+     assert{ k.search('cat').paginate(:page => 1, :size => 2).to_a.size == 2 }
+     assert{ k.search('cat').paginate(:page => 2, :size => 5).to_a.size == 5 }
+
+     accum = []
+
+     n = 6
+     size = 2
+     (1..n).each do |page|
+       list = assert{ k.search('cat').paginate(:page => page, :size => size) }
+       accum.push(*list)
+       assert{ list.num_pages == n }
+       assert{ list.total_pages == n }
+       assert{ list.current_page == page }
+     end
+
+     a = accum.map{|i| i.model}.sort_by{|m| m.content}
+     b = k.all.sort_by{|m| m.content}
+
+     assert{ a == b }
   end
 
 protected

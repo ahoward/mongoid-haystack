@@ -70,12 +70,6 @@
         end
       end
 
-      begin
-        require 'kaminari'
-      rescue LoadError
-        nil
-      end
-
       require 'unicode_utils/u'
       require 'unicode_utils/each_word'
 
