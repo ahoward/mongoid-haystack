@@ -53,18 +53,27 @@ SYNOPSIS
 
     article = results.first.model
 
-  # by default searching returns Mongoid::Haystack::Index objects. you'll want to
-  # expand these results to the models they reference in your views, but avoid
-  # doing an N+1 query.  to do this simply call Haystack.models_for on the result
-  # set and the models will be eager loaded using only as many queries as their
-  # are model types in your result set.  although a slightly less beautiful
-  # api compared to 'results.models' it avoids issues with whichever
-  # pagination plugin you might be using since the results of a normal
-  # Mongoid::Criteria objects - just like every other Mongoid query
+  # by default 'search' returns a Mongoid::Criteria object.  the result set will
+  # be full of objects that refer to a model in your app via a polymorphic
+  # relation out.  aka
   #
+  #   Article.search('foobar').first.class       #=> Mongoid::Haystack::Index
+  #   Article.search('foobar').first.model.class #=> Article
+  #
+  # in an index view you are not going to want to expand the search index
+  # objects into full blown models one at the time (N+1) so you can use the
+  # 'models' method on the collection to effciently expand the collection into
+  # your application models with the fewest possible queries.  note that
+  # 'models' is a terminal operator.  that is to say it returns an array and,
+  # afterwards, no more fancy query language is gonna work.
 
-    @results = Mongoid::Haystack.search('needle').page(params[:page]).per(10)
-    @models = Mongoid::Haystack.models_for(results)
+    @results = Mongoid::Haystack.search('needle').models
+
+  # pagination is supported out of the box.  note that you should chain it
+  # *b4* any call to 'models'
+
+    @results = 
+      Mongoid::Haystack.search('needle').paginate(:page => 3, :size => 42).models
 
 
   # haystack stems the search terms and does score based sorting all using a
@@ -74,13 +83,11 @@ SYNOPSIS
     b = Article.create!(:content => 'dogs eat cats')
     c = Article.create!(:content => 'dogs dogs dogs')
 
-    results = Article.search('dogs cats')
-    models = Mongoid::Haystack.models_for(results)
-    models == [b, a, c] #=> true
+    results = Article.search('dogs cats').map(&:model)
+    results == [b, a, c] #=> true
 
-    results = Article.search('awesome')
-    models = Mongoid::Haystack.models_for(results)
-    models == [a] #=> true
+    results = Article.search('awesome').map(&:model)
+    results == [a] #=> true
 
 
   # cross models searching is supported out of the box, and models can
