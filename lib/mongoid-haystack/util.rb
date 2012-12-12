@@ -3,8 +3,8 @@ module Mongoid
     module Util 
       def models
         [
-          Mongoid::Haystack::Token,
           Mongoid::Haystack::Index,
+          Mongoid::Haystack::Token,
           Mongoid::Haystack::Sequence
         ]
       end
