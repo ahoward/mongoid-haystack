@@ -339,6 +339,30 @@ Testing Mongoid::Haystack do
      assert{ models.is_a?(Array) }
   end
 
+##
+#
+  test '.words_for' do
+    {
+      ' cats and dogs ' => %w( cats and dogs ),
+      ' cats-and-dogs ' => %w( cats and dogs ),
+      ' cats_and_dogs ' => %w( cats and dogs ),
+      ' cats!and?dogs ' => %w( cats and dogs ),
+    }.each do |src, dst|
+      assert{ Mongoid::Haystack::words_for(src) == dst }
+    end
+  end
+
+  test '.stems_for' do
+    {
+      ' cats and dogs ' => %w( cat dog ),
+      ' cats!and?dogs ' => %w( cat dog ),
+      ' fishing and hunting ' => %w( fish hunt ),
+      ' fishing-and-hunting ' => %w( fish hunt ),
+    }.each do |src, dst|
+      assert{ Mongoid::Haystack::stems_for(src) == dst }
+    end
+  end
+
 protected
 
   def new_klass(&block)

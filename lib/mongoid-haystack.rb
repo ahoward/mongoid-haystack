@@ -2,7 +2,7 @@
 #
   module Mongoid
     module Haystack
-      const_set :Version, '1.2.0'
+      const_set :Version, '1.2.1'
 
       class << Haystack
         def version

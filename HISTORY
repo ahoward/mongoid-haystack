@@ -1,3 +1,6 @@
+1.2.1:
+  - stems split on underscore: "cats_dogs" #=> "cat", "dog"
+
 1.2.0:
   - faster indexing using bulk operators
   - pagination support

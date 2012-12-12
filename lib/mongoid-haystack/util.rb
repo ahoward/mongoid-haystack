@@ -60,8 +60,12 @@ module Mongoid
       end
 
       def words_for(*args)
-        string = args.flatten.compact.join(' ').scan(/\w+/).join(' ')
+        string = args.join(' ')
+        string.gsub!(/_+/, '-')
+        string.gsub!(/[^\w]/, ' ')
+
         words = []
+
         UnicodeUtils.each_word(string) do |word|
           word = UnicodeUtils.nfkd(word.strip)
           word.gsub!(/\A(?:[^\w]|_|\s)+/, '')  # leading punctuation/spaces
@@ -69,6 +73,7 @@ module Mongoid
           next if word.empty?
           words.push(word)
         end
+
         words
       end
 
