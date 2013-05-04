@@ -2,6 +2,10 @@ module Mongoid
   module Haystack
     module Search
       ClassMethods = proc do
+        def mongoid_haystack_searchable?
+          true
+        end
+
         def search(*args, &block)
           options = Map.options_for!(args)
           options[:types] = Array(options[:types]).flatten.compact
@@ -52,8 +56,10 @@ module Mongoid
       def Search.included(other)
         super
       ensure
-        other.instance_eval(&ClassMethods)
-        other.class_eval(&InstanceMethods)
+        unless other.respond_to?(:mongoid_haystack_searchable?)
+          other.instance_eval(&ClassMethods)
+          other.class_eval(&InstanceMethods)
+        end
       end
     end
 
@@ -99,6 +105,8 @@ module Mongoid
       tokens.each do |token|
         order.push(["fulltext_scores.#{ token.id }", :desc])
       end
+
+      order.push(["size", :asc])
 
     #
       if options[:facets]
@@ -201,16 +209,22 @@ module Mongoid
 
     def search_tokens_for(search)
       values = Token.values_for(search.to_s)
-      tokens = Token.where(:value.in => values).to_a
+      tokens = []
 
-      positions = {}
-      tokens.each_with_index{|token, index| positions[token] = index + 1}
+      Token.where(:value.in => values).each do |token|
+        index = values.index(token.value)
+        tokens[index] = token
+      end
 
       total = Token.total.to_f
 
-      tokens.sort! do |a,b|
-        [b.rarity_bin(total), positions[b]] <=> [a.rarity_bin(total), positions[a]]
-      end
+      rarity = {}
+      tokens.map{|token| rarity[token] = token.rarity_bin(total)}
+
+      position = {}
+      tokens.each_with_index{|token, i| position[token] = i + 1}
+
+      tokens.sort!{ |a, b| [rarity[b], position[a]] <=> [rarity[a], position[b]] }
 
       tokens
     end

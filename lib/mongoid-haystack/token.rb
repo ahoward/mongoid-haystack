@@ -5,7 +5,7 @@ module Mongoid
 
       class << Token
         def values_for(*args)
-          Haystack.stems_for(*args)
+          Haystack.tokens_for(*args)
         end
 
         def add(value)

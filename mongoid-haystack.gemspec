@@ -3,7 +3,7 @@
 
 Gem::Specification::new do |spec|
   spec.name = "mongoid-haystack"
-  spec.version = "1.2.1"
+  spec.version = "1.3.0"
   spec.platform = Gem::Platform::RUBY
   spec.summary = "mongoid-haystack"
   spec.description = "a mongoid 3 zero-config, zero-integration, POLS pure mongo fulltext solution"
@@ -12,6 +12,7 @@ Gem::Specification::new do |spec|
 ["HISTORY",
  "README.md",
  "Rakefile",
+ "article",
  "lib",
  "lib/app",
  "lib/app/models",
@@ -57,19 +58,19 @@ Gem::Specification::new do |spec|
   spec.test_files = nil
 
   
-    spec.add_dependency(*["mongoid", "~> 3.0.14"])
+    spec.add_dependency(*["mongoid", "~> 3.0"])
   
-    spec.add_dependency(*["moped", "~> 1.3.1"])
+    spec.add_dependency(*["moped", "~> 1.3"])
   
-    spec.add_dependency(*["origin", "~> 1.0.11"])
+    spec.add_dependency(*["origin", "~> 1.0"])
   
     spec.add_dependency(*["map", "~> 6.2"])
   
     spec.add_dependency(*["fattr", "~> 2.2"])
   
-    spec.add_dependency(*["coerce", "~> 0.0.3"])
+    spec.add_dependency(*["coerce", "~> 0.0"])
   
-    spec.add_dependency(*["unicode_utils", "~> 1.4.0"])
+    spec.add_dependency(*["unicode_utils", "~> 1.4"])
   
 
   spec.extensions.push(*[])

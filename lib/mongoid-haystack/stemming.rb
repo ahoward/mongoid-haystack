@@ -3,17 +3,19 @@
 module Mongoid
   module Haystack
     module Stemming
-      def stem(*args)
+      def stem(*args, &block)
         string = args.join(' ')
         words = Util.words_for(*args)
-        stems = []
+        list = []
+
         words.each do |word|
           stem = word.stem.downcase
           next if Stopwords.stopword?(word)
           next if Stopwords.stopword?(stem)
-          stems.push(stem)
+          block ? block.call(stem) : list.push(stem)
         end
-        stems
+
+        block ? nil : list
       end
 
       alias_method('for', 'stem')
@@ -37,6 +39,8 @@ module Mongoid
           end
         end
 
+      # TODO - this needs to be configurable...
+      #
         unless defined?(All)
           All = []
           All.concat(List['english'])

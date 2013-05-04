@@ -50,6 +50,25 @@ Testing Mongoid::Haystack do
 
 ##
 #
+  testing 'that word specificity affects the sort' do
+    a = A.create!(:content => 'cat@dog.com')
+    b = A.create!(:content => 'dogs')
+    c = A.create!(:content => 'dog')
+    d = A.create!(:content => 'cats')
+    e = A.create!(:content => 'cat')
+
+    assert{ Mongoid::Haystack.index(A) }
+
+    assert{ Mongoid::Haystack.search('cat@dog.com').map(&:model) == [a, e, d, c, b] }
+    assert{ Mongoid::Haystack.search('cat').map(&:model) == [e, d, a] }
+    assert{ Mongoid::Haystack.search('cats').map(&:model) == [d, e, a] }
+    assert{ Mongoid::Haystack.search('dog').map(&:model) == [c, b, a] }
+    assert{ Mongoid::Haystack.search('dogs').map(&:model) == [b, c, a] }
+    #assert{ Mongoid::Haystack.search('dog').map(&:model) == [c, b, a] }
+  end
+
+##
+#
   testing 'that basic stemming can be performed' do
     assert{ Mongoid::Haystack.stems_for('dogs cats fishes') == %w[ dog cat fish ] }
   end
@@ -76,45 +95,59 @@ Testing Mongoid::Haystack do
 
     assert{ Mongoid::Haystack.index(A) }
 
-    assert{ Mongoid::Haystack::Token.count == 2 }
-    assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog ) }
-    assert{ Mongoid::Haystack::Token.total == 3 }
+    assert{ Mongoid::Haystack::Token.count == 3 }
+    assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog dogs ) }
+    assert{ Mongoid::Haystack::Token.total == 4 }
   end
 
   testing 'that removing a model from the index decrements counts appropriately' do
-    a = A.create!(:content => 'dog')
-    b = A.create!(:content => 'cat')
-    c = A.create!(:content => 'cats dogs')
+    2.times do |i|
+      A.destroy_all
 
-    assert{ Mongoid::Haystack.index(A) }
+      a = A.create!(:content => 'dog')
+      b = A.create!(:content => 'cat')
+      c = A.create!(:content => 'cats dogs')
 
-    assert{ Mongoid::Haystack.search('cat').first }
+      remove = proc do |model|
+        assert{
+          if i == 0
+            assert{ Mongoid::Haystack.unindex(model) }
+          else
+            assert{ model.destroy; true }
+          end
+        }
+      end
 
-    assert{ Mongoid::Haystack::Token.where(:value => 'cat').first.count == 2 }
-    assert{ Mongoid::Haystack::Token.where(:value => 'dog').first.count == 2 }
-    assert{ Mongoid::Haystack::Token.total == 4 }
-    assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog ) }
-    assert{ Mongoid::Haystack.unindex(c) }
-    assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog ) }
-    assert{ Mongoid::Haystack::Token.total == 2 }
-    assert{ Mongoid::Haystack::Token.where(:value => 'cat').first.count == 1 }
-    assert{ Mongoid::Haystack::Token.where(:value => 'dog').first.count == 1 }
+      assert{ Mongoid::Haystack.index(A) }
 
-    assert{ Mongoid::Haystack::Token.total == 2 }
-    assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog ) }
-    assert{ Mongoid::Haystack.unindex(b) }
-    assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog ) }
-    assert{ Mongoid::Haystack::Token.total == 1 }
-    assert{ Mongoid::Haystack::Token.where(:value => 'cat').first.count == 0 }
-    assert{ Mongoid::Haystack::Token.where(:value => 'dog').first.count == 1 }
+      %w( cat dog cats dogs ).each do |search|
+        assert{ Mongoid::Haystack.search(search).first }
+      end
 
-    assert{ Mongoid::Haystack::Token.total == 1 }
-    assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog ) }
-    assert{ Mongoid::Haystack.unindex(a) }
-    assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog ) }
-    assert{ Mongoid::Haystack::Token.total == 0 }
-    assert{ Mongoid::Haystack::Token.where(:value => 'cat').first.count == 0 }
-    assert{ Mongoid::Haystack::Token.where(:value => 'dog').first.count == 0 }
+      assert{ Mongoid::Haystack::Token.where(:value => 'cat').first.count == 2 }
+      assert{ Mongoid::Haystack::Token.where(:value => 'dog').first.count == 2 }
+      assert{ Mongoid::Haystack::Token.total == 6 }
+      assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat cats dog dogs ) }
+
+      remove[ c ]
+      assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat cats dog dogs ) }
+      assert{ Mongoid::Haystack::Token.total == 2 }
+      assert{ Mongoid::Haystack::Token.where(:value => 'cat').first.count == 1 }
+      assert{ Mongoid::Haystack::Token.where(:value => 'dog').first.count == 1 }
+
+
+      remove[ b ]
+      assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat cats dog dogs ) }
+      assert{ Mongoid::Haystack::Token.total == 1 }
+      assert{ Mongoid::Haystack::Token.where(:value => 'cat').first.count == 0 }
+      assert{ Mongoid::Haystack::Token.where(:value => 'dog').first.count == 1 }
+
+      remove[ a ]
+      assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat cats dog dogs ) }
+      assert{ Mongoid::Haystack::Token.total == 0 }
+      assert{ Mongoid::Haystack::Token.where(:value => 'cat').first.count == 0 }
+      assert{ Mongoid::Haystack::Token.where(:value => 'dog').first.count == 0 }
+    end
   end
 
 ##
@@ -129,7 +162,7 @@ Testing Mongoid::Haystack do
 ##
 #
   testing 'that classes can export a custom [score|keywords|fulltext] for the search index' do
-    k = new_klass do 
+    k = new_klass do
       def to_haystack
         colors.push(color = colors.shift)
 
@@ -146,6 +179,10 @@ Testing Mongoid::Haystack do
         @score ||= 0
       ensure
         @score += 1
+      end
+
+      def self.score=(score)
+        @score = score.to_i
       end
 
       def score
@@ -169,11 +206,11 @@ Testing Mongoid::Haystack do
 
     assert do
       a.haystack_index.tokens.map(&:value).sort ==
-        ["black", "cat", "good", "men", "time"]
+        ["black", "cat", "cats", "good", "men", "time"]
     end
     assert do
       b.haystack_index.tokens.map(&:value).sort ==
-        ["cat", "good", "men", "time", "white"]
+        ["cat", "cats", "good", "men", "time", "white"]
     end
 
     assert{ Mongoid::Haystack.search('cat').count == 2 }
@@ -361,6 +398,14 @@ Testing Mongoid::Haystack do
     }.each do |src, dst|
       assert{ Mongoid::Haystack::stems_for(src) == dst }
     end
+  end
+
+  test '.tokens_for' do
+   {
+    'cats-and-dogs Cats!and?dogs foo-bar! The end. and trees' => %w( cats-and-dogs cats cat dogs dog Cats!and?dogs Cats cat dogs dog foo-bar foo bar end trees tree )
+   }.each do |src, dst|
+     assert{ Mongoid::Haystack.tokens_for(src) == dst }
+   end
   end
 
 protected

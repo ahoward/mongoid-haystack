@@ -59,26 +59,117 @@ module Mongoid
         end
       end
 
-      def words_for(*args)
+      def token_tree_for(*args, &block)
+        tree = []
+
+        phrases_for(*args) do |phrase|
+          #next if stopword?(phrase)
+
+          if block
+            block.call(:phrase, phrase)
+          else
+            tree.push([phrase, words = []])
+          end
+
+          words_for(phrase) do |word|
+            #next if phrase == word
+            #next if stopword?(word)
+
+            if block
+              block.call(:word, word)
+            else
+              words.push([word, stems = []])
+            end
+
+            stems_for(word) do |stem|
+              #next if word == stem
+
+              if block
+                block.call(:stem, stem)
+              else
+                stems.push(stem)
+              end
+            end
+          end
+        end
+
+        block ? nil : tree
+      end
+
+      def tokens_for(*args, &block)
+        list = []
+
+        token_tree_for(*args).each do |phrase, words|
+          next if stopword?(phrase)
+          block ? block.call(phrase) : list.push(phrase) 
+
+          words.each do |word, stems|
+            next if stopword?(word)
+
+            unless word == phrase
+              block ? block.call(word) : list.push(word) 
+            end
+
+            stems.each do |stem|
+              next if stopword?(stem)
+
+              unless stem == phrase or stem == word
+                block ? block.call(stem) : list.push(stem)
+              end
+            end
+          end
+        end
+
+        block ? nil : list
+      end
+
+      def phrases_for(*args, &block)
+        string = args.join(' ')
+        string.strip!
+
+        phrases = string.split(/\s+/)
+
+        list = []
+
+        phrases.each do |phrase|
+          strip!(phrase)
+          next if phrase.empty?
+          block ? block.call(phrase) : list.push(phrase)
+        end
+
+        block ? nil : list
+      end
+
+      def words_for(*args, &block)
         string = args.join(' ')
         string.gsub!(/_+/, '-')
         string.gsub!(/[^\w]/, ' ')
 
-        words = []
+        list = []
 
         UnicodeUtils.each_word(string) do |word|
-          word = UnicodeUtils.nfkd(word.strip)
-          word.gsub!(/\A(?:[^\w]|_|\s)+/, '')  # leading punctuation/spaces
-          word.gsub!(/(?:[^\w]|_|\s+)+\Z/, '') # trailing punctuation/spaces
+          strip!(word)
           next if word.empty?
-          words.push(word)
+          block ? block.call(word) : list.push(word)
         end
 
-        words
+        block ? nil : list
       end
 
       def stems_for(*args, &block)
         Stemming.stem(*args, &block)
+      end
+
+      def stopword?(word)
+        word = UnicodeUtils.nfkd(word.to_s.strip.downcase)
+        word.empty? or Stemming::Stopwords.stopword?(word)
+      end
+
+      def strip!(word)
+        word.replace(UnicodeUtils.nfkd(word.to_s.strip))
+        word.gsub!(/\A(?:[^\w]|_|\s)+/, '')  # leading punctuation/spaces
+        word.gsub!(/(?:[^\w]|_|\s+)+\Z/, '') # trailing punctuation/spaces
+        word
       end
 
       extend Util

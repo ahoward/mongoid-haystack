@@ -174,23 +174,36 @@ module Mongoid
         end
       end
 
-      before_destroy{|index| Index.subtract(index)}
+      before_destroy do |index|
+        Index.subtract(index)
+      end
+
+      before_validation do |index|
+        index.size = tokens.count
+      end
 
       belongs_to(:model, :polymorphic => true)
 
       has_and_belongs_to_many(:tokens, :class_name => '::Mongoid::Haystack::Token', :inverse_of => nil)
 
+      field(:size, :type => Integer, :default => nil)
       field(:score, :type => Integer, :default => 0)
       field(:keyword_scores, :type => Hash, :default => proc{ Hash.new{|h,k| h[k] = 0} })
       field(:fulltext_scores, :type => Hash, :default => proc{ Hash.new{|h,k| h[k] = 0} })
       field(:facets, :type => Hash, :default => {})
 
+      %w( size score ).each do |f|
+        validates_presence_of(f)
+      end
+
       index({:model_type => 1, :model_id => 1}, :unique => true)
 
       index({:token_ids => 1})
       index({:score => 1})
+      index({:size => 1})
       index({:keyword_scores => 1})
       index({:fulltext_scores => 1})
+      index({:facets => 1})
     end
   end
 end
