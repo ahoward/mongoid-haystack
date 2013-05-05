@@ -4,8 +4,7 @@ module Mongoid
   module Haystack
     module Stemming
       def stem(*args, &block)
-        string = args.join(' ')
-        words = Util.words_for(*args)
+        words = args.join(' ').strip.split(/\s+/)
         list = []
 
         words.each do |word|

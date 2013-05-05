@@ -80,7 +80,11 @@ module Mongoid
       index({:count => 1})
 
       def frequency(n_tokens = Token.total.value.to_f)
-        (count / n_tokens).round(2)
+        if n_tokens.zero?
+          Float::Infinity
+        else
+          (count / n_tokens).round(2)
+        end
       end
 
       def frequency_bin(n_tokens = Token.total.value.to_f)
@@ -92,7 +96,11 @@ module Mongoid
       end
 
       def rarity_bin(n_tokens = Token.total.value.to_f)
-        (rarity(n_tokens) * 10).truncate
+        if n_tokens.zero?
+          Float::Infinity
+        else
+          (rarity(n_tokens) * 10).truncate
+        end
       end
     end
   end

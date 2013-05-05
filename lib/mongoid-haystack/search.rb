@@ -14,9 +14,21 @@ module Mongoid
           results = Haystack.search(*args, &block)
         end
 
-        def search_index_all!
-          all.each do |doc|
+        def search_index_all!(*args, &block)
+          options = Map.options_for!(args)
+          models = args.shift
+          
+          unless models
+            models = where(:haystack_index => nil)
+          end
+
+          threads = options[:threads] || 16
+
+          models.all.each do |doc|
             Mongoid::Haystack::Index.remove(doc)
+          end
+
+          models.all.each do |doc|
             Mongoid::Haystack::Index.add(doc)
           end
         end
@@ -208,13 +220,17 @@ module Mongoid
     end
 
     def search_tokens_for(search)
-      values = Token.values_for(search.to_s)
+      #values = Token.values_for(search.to_s)
+      #values = Util.phrases_for(search).map{|phrase| Util.stems_for(phrase)}.flatten
+      values = Util.search_for(search)
       tokens = []
 
       Token.where(:value.in => values).each do |token|
         index = values.index(token.value)
         tokens[index] = token
       end
+
+      tokens.compact!
 
       total = Token.total.to_f
 

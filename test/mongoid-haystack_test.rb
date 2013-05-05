@@ -45,12 +45,13 @@ Testing Mongoid::Haystack do
     d = A.create!(:content => 'dog dog dog cat')
     
     assert{ Mongoid::Haystack.index(A) }
+    Mongoid::Haystack.search('cat dog').map(&:model) == [d, c, b, a] 
     assert{ Mongoid::Haystack.search('cat dog').map(&:model) == [d, c, b, a] }
   end
 
 ##
 #
-  testing 'that word specificity affects the sort' do
+  testing 'that word specificity affects the search' do
     a = A.create!(:content => 'cat@dog.com')
     b = A.create!(:content => 'dogs')
     c = A.create!(:content => 'dog')
@@ -59,7 +60,7 @@ Testing Mongoid::Haystack do
 
     assert{ Mongoid::Haystack.index(A) }
 
-    assert{ Mongoid::Haystack.search('cat@dog.com').map(&:model) == [a, e, d, c, b] }
+    assert{ Mongoid::Haystack.search('cat@dog.com').map(&:model) == [a] }
     assert{ Mongoid::Haystack.search('cat').map(&:model) == [e, d, a] }
     assert{ Mongoid::Haystack.search('cats').map(&:model) == [d, e, a] }
     assert{ Mongoid::Haystack.search('dog').map(&:model) == [c, b, a] }
@@ -392,9 +393,9 @@ Testing Mongoid::Haystack do
   test '.stems_for' do
     {
       ' cats and dogs ' => %w( cat dog ),
-      ' cats!and?dogs ' => %w( cat dog ),
+      ' cats!and?dogs ' => %w( cats!and?dog ),
       ' fishing and hunting ' => %w( fish hunt ),
-      ' fishing-and-hunting ' => %w( fish hunt ),
+      ' fishing-and-hunting ' => %w( fishing-and-hunt ),
     }.each do |src, dst|
       assert{ Mongoid::Haystack::stems_for(src) == dst }
     end

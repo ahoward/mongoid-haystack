@@ -160,6 +160,10 @@ module Mongoid
         Stemming.stem(*args, &block)
       end
 
+      def search_for(*args, &block)
+        phrases_for(*args).map{|phrase| [phrase, stems_for(phrase)]}.flatten.compact.uniq
+      end
+
       def stopword?(word)
         word = UnicodeUtils.nfkd(word.to_s.strip.downcase)
         word.empty? or Stemming::Stopwords.stopword?(word)
