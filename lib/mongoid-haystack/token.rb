@@ -28,7 +28,7 @@ module Mongoid
 
         # new we should have one token per uniq value
         #
-          tokens = where(:value.in => values)
+          tokens = where(:value.in => values).to_a
 
         # batch update the counts on the tokens by the number of times each
         # value was seen in the list
@@ -41,6 +41,13 @@ module Mongoid
 
           values.each do |value|
             token = token_index[value]
+
+            unless token
+              token = Token.create!(:value => value)
+              value_index[value] ||= []
+              value_index[value].push(value)
+            end
+
             count = value_index[value].size
             counts[count] ||= []
             counts[count].push(token.id)

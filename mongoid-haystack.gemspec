@@ -3,7 +3,7 @@
 
 Gem::Specification::new do |spec|
   spec.name = "mongoid-haystack"
-  spec.version = "1.4.0"
+  spec.version = "1.4.1"
   spec.platform = Gem::Platform::RUBY
   spec.summary = "mongoid-haystack"
   spec.description = "a mongoid 3 zero-config, zero-integration, POLS pure mongo fulltext solution"

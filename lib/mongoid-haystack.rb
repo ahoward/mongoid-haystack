@@ -2,7 +2,7 @@
 #
   module Mongoid
     module Haystack
-      const_set(:Version, '1.4.0') unless const_defined?(:Version)
+      const_set(:Version, '1.4.1') unless const_defined?(:Version)
 
       class << Haystack
         def version
