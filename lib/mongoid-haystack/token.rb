@@ -3,6 +3,8 @@ module Mongoid
     class Token
       include Mongoid::Document
 
+      class Error < ::StandardError; end
+
       class << Token
         def values_for(*args)
           Haystack.tokens_for(*args)
@@ -15,20 +17,58 @@ module Mongoid
           values.flatten!
           values.compact!
 
-        # ensure that a token exists for each value seen
+        # try very hard to create tokens efficently in bulk
         #
-          existing = where(:value.in => values)
-          missing = values - existing.map(&:value)
+          missing = []
+          
+          42.times do
+            existing = where(:value.in => values)
+            missing = values - existing.map(&:value)
 
-          docs = missing.map{|value| {:_id => Token.next_hex_id, :value => value}}
-          unless docs.empty?
-            collection = mongo_session.with(:safe => false)[collection_name]
-            collection.insert(docs, [:continue_on_error])
+            docs = missing.map{|value| {:_id => Token.next_hex_id, :value => value}}
+
+            unless docs.empty?
+              collection = mongo_session.with(:safe => false)[collection_name]
+              collection.insert(docs, [:continue_on_error])
+            else
+              break
+            end
+          end
+
+        # fill in gaps individually iff needed... (another process may be racing to create tokens)
+        #
+          42.times do
+            existing = where(:value.in => values)
+            missing = values - existing.map(&:value)
+
+            unless missing.empty?
+              missing.each do |value|
+                begin
+                  Token.new.tap do |t|
+                    t.id = Token.next_hex_id
+                    t.value = value
+                    t.save!
+                  end
+                rescue Object
+                  next
+                end
+              end
+            else
+              break
+            end
           end
 
         # new we should have one token per uniq value
         #
           tokens = where(:value.in => values).to_a
+
+        # sigh - go boom if we failed to ensure the creation of all required
+        # tokens...
+        #
+          missing = values - tokens.map(&:value)
+          unless missing.size == 0
+            raise(Error, "missing tokens (#{ missing.inspect })")
+          end
 
         # batch update the counts on the tokens by the number of times each
         # value was seen in the list
@@ -41,12 +81,6 @@ module Mongoid
 
           values.each do |value|
             token = token_index[value]
-
-            unless token
-              token = Token.create!(:value => value)
-              value_index[value] ||= []
-              value_index[value].push(value)
-            end
 
             count = value_index[value].size
             counts[count] ||= []
@@ -81,7 +115,7 @@ module Mongoid
 
       field(:_id, :type => String, :default => proc{ Token.next_hex_id })
       field(:value, :type => String)
-      field(:count, :type => Integer, :default => 0)
+      field(:count, :type => Integer)
 
       index({:value => 1}, {:unique => true})
       index({:count => 1})

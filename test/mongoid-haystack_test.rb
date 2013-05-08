@@ -96,6 +96,7 @@ Testing Mongoid::Haystack do
 
     assert{ Mongoid::Haystack.index(A) }
 
+
     assert{ Mongoid::Haystack::Token.count == 3 }
     assert{ Mongoid::Haystack::Token.all.map(&:value).sort == %w( cat dog dogs ) }
     assert{ Mongoid::Haystack::Token.total == 4 }
@@ -296,11 +297,15 @@ Testing Mongoid::Haystack do
       end
     end
 
+    k.destroy_all
+
     n = 10
 
-    n.times do
+    n.times do |i|
       k.create!(:title => 'the cats and dogs', :body => 'now now is is the the time time for for all all good good men women')
+      assert{ Mongoid::Haystack.search('cat').count == (i + 1) }
     end
+    assert{ Mongoid::Haystack.search('cat').count == n }
 
     n.times do
       k.create!(:title => 'a b c abc xyz abc xyz b', :body => 'pdq pdq pdq xyz teh ngr am')

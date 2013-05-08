@@ -2,7 +2,7 @@
 #
   module Mongoid
     module Haystack
-      const_set(:Version, '1.4.1') unless const_defined?(:Version)
+      const_set(:Version, '1.4.2') unless const_defined?(:Version)
 
       class << Haystack
         def version
@@ -11,7 +11,7 @@
 
         def dependencies
           {
-            'mongoid'       => [ 'mongoid'       , '~> 3.0' ] ,
+            'mongoid'       => [ 'mongoid'       , '~> 3.1' ] ,
             'moped'         => [ 'moped'         , '~> 1.3' ] ,
             'origin'        => [ 'origin'        , '~> 1.0' ] ,
             'map'           => [ 'map'           , '~> 6.2' ] ,
